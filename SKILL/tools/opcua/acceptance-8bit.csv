@@ -1,0 +1,13 @@
+﻿Tag Name,Client Access
+K Registers.Boolean1,R/W
+K Registers.Byte1,R/W
+K Registers.Char1,R/W
+K Registers.Short1,R/W
+K Registers.Word1,R/W
+K Registers.Long1,R/W
+K Registers.DWord1,R/W
+K Registers.LLong1,R/W
+K Registers.QWord1,R/W
+K Registers.Float1,R/W
+K Registers.Double1,R/W
+S Registers.String1,R/W
