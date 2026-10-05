@@ -93,9 +93,12 @@ node .\tools\modbus-sim\validate-map.js .\tools\modbus-sim\devices\smart-temp-pr
 ```ctl
 dpSetTimedWait(0, "_Mod_Plc_2.DrvNumber",     2);
 dpSetTimedWait(0, "_Mod_Plc_2.UnitAddress",   2);
-dpSetTimedWait(0, "_Mod_Plc_2.HostsAndPorts", "192.168.0.107:504");
+dpSetTimedWait(0, "_Mod_Plc_2.HostsAndPorts", "<IP-сервера>:504");
 dpSetTimedWait(0, "_Mod_Plc_2.Active",        TRUE);
 ```
+
+В `HostsAndPorts` подставь адрес своего сервера — в примере он
+стоит плейсхолдером. Порт `504` — стандартный для Modbus TCP.
 
 Подробности и диагностика — в
 [diagnosing-silent-address.md](diagnosing-silent-address.md).

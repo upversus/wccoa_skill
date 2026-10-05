@@ -129,9 +129,12 @@ _Mod_Plc_1: DrvNumber=2  ← работает
 ```ctl
 dpSetTimedWait(0, "_Mod_Plc_2.DrvNumber",     2);
 dpSetTimedWait(0, "_Mod_Plc_2.UnitAddress",   2);
-dpSetTimedWait(0, "_Mod_Plc_2.HostsAndPorts", "192.168.0.107:504");
+dpSetTimedWait(0, "_Mod_Plc_2.HostsAndPorts", "<IP-сервера>:504");
 dpSetTimedWait(0, "_Mod_Plc_2.Active",        TRUE);
 ```
+
+В `HostsAndPorts` подставь адрес своего сервера — в примере он
+стоит плейсхолдером. Порт `504` — стандартный для Modbus TCP.
 
 `dpGetAllAttributes` на узле `_Mod_Plc_N` возвращает пусто — узел не является
 обычной точкой данных, перечислять атрибуты нечем. Список полей известен:

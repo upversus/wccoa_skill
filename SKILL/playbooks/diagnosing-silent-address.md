@@ -72,9 +72,12 @@ for (int k = 1; k <= 6; k++)
 ```ctl
 dpSetTimedWait(0, "_Mod_Plc_2.DrvNumber",     2);
 dpSetTimedWait(0, "_Mod_Plc_2.UnitAddress",   2);
-dpSetTimedWait(0, "_Mod_Plc_2.HostsAndPorts", "192.168.0.107:504");
+dpSetTimedWait(0, "_Mod_Plc_2.HostsAndPorts", "<IP-сервера>:504");
 dpSetTimedWait(0, "_Mod_Plc_2.Active",        TRUE);
 ```
+
+В `HostsAndPorts` подставь адрес своего сервера — в примере он
+стоит плейсхолдером. Порт `504` — стандартный для Modbus TCP.
 
 После этого драйвер подхватывает узел сам, перезапуск не нужен. На стенде
 проверено: все шесть узлов подхватились сразу после записи.
