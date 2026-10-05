@@ -25,6 +25,10 @@
 const fs = require('fs');
 const path = require('path');
 const regtype = require('./modbus-sim/regtype.js');
+const { freePrologue, helperCtl } = require('./node-busy.js');
+// Проверка занятости узлов. Правило живёт в отдельном модуле, потому что
+// нужно и генератору Modbus, и генератору OPC UA, а две копии через месяц
+// обязательно разойдутся.
 
 const args = process.argv.slice(2);
 const file = args.find((a) => !a.startsWith('--'));
@@ -170,6 +174,7 @@ header.push('// Не правьте этот файл руками: он пер�
 header.push('// генерации. Правьте карту и запускайте генератор заново.');
 header.push('//');
 header.push('// Карта элементов:');
+
 for (const b of blocks) {
   header.push(`//`);
   header.push(`//   точка ${b.dpName}, тип ${b.dptName}, slave ${b.dev.id}`);
@@ -186,6 +191,10 @@ for (const b of blocks) {
 header.push('');
 
 const out = [];
+// Все узлы, которые собираемся занять, для проверки одним проходом.
+const busyRefs = [];
+for (const b of blocks) { for (const e of b.els) { busyRefs.push(e.addr); } }
+
 out.push(header.join('\n'));
 out.push('');
 out.push('// Сгенерировано: делаем точку, привязываем адреса, проверяем данные.');
@@ -207,6 +216,8 @@ out.push('    DebugN("  Создайте её: панель системы -> Dr
 out.push('    dpdFail++;');
 out.push('    return;');
 out.push('  }');
+out.push('');
+out.push(freePrologue(busyRefs));
 out.push('');
 for (const b of blocks) {
   out.push(b.body);
@@ -275,6 +286,8 @@ out.push('');
 out.push('// ------------------------------------------------------------------');
 out.push('// Привязка адреса. Рецепт проверен на CTL 3.18; порядок атрибутов важен.');
 out.push('// Без _distrib драйвер не считает точку своей и молчит без ошибок.');
+out.push(helperCtl);
+out.push('');
 out.push('void cfg(string dp, string el, string addr, int datatype, int direction, string grp)');
 out.push('{');
 out.push('  string dpe = dp + "." + el;');

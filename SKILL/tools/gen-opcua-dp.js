@@ -28,6 +28,10 @@ const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 
+// Проверка занятости узлов живёт в отдельном модуле: он нужен обоим
+// генераторам, а две копии правила через месяц обязательно разойдутся.
+const { freePrologue, helperCtl } = require('./node-busy.js');
+
 // ------------------------------------------------------------------ ключи
 
 const args = process.argv.slice(2);
@@ -375,6 +379,11 @@ const dpPrefix = opt('dp', safeName(path.basename(file, ext), 'dpopc').toLowerCa
 const dpName = dpPrefix;
 const dptName = opt('dpt', `${dpPrefix}_t`);
 
+// Полный адрес собирается внутри CTL из префикса и NodeId, поэтому на стороне
+// Node доступен только NodeId. Он и есть ключ занятости узла.
+const busyRefs = [];
+for (const e of elems) { busyRefs.push(e.nodeId); }
+
 const L = [];
 L.push('// СГЕНЕРИРОВАНО АВТОМАТИЧЕСКИ: tools/gen-opcua-dp.js');
 L.push(`// Карта    : ${path.basename(file)}`);
@@ -415,8 +424,10 @@ L.push('int ADDR_DATATYPE_FLOAT   = 760;');
 L.push('int ADDR_DATATYPE_DOUBLE  = 761;');
 L.push('int ADDR_DATATYPE_STRING  = 762;');
 L.push('');
+
 L.push('main()');
 L.push('{');
+L.push('');
 L.push('  DebugN("=== OPC UA: точка по карте ===");');
 L.push('');
 L.push('  // Сервер и подписка находятся в проекте по ТИПУ. Имя в адресе');
@@ -431,6 +442,8 @@ L.push('  if (subName    == "" ) { chk(FALSE, "найдена точка тип�
 L.push('');
 L.push('  string prefix = serverName + "$" + subName + "$1$1$";');
 L.push('  DebugN("  префикс  = ", prefix);');
+L.push('');
+L.push(freePrologue(busyRefs, 'prefix'));
 L.push('');
 L.push('  killDP("' + dpName + '", "' + dptName + '");');
 if (keep) { L.push('  DebugN("  --keep: существующая точка не удаляется");'); }
@@ -515,6 +528,8 @@ L.push('}');
 L.push('');
 L.push('// Привязка. Рецепт проверен на CTL 3.18, порядок атрибутов важен.');
 L.push('// Без _distrib драйвер не считает точку своей и молчит без ошибок.');
+L.push(helperCtl);
+L.push('');
 L.push('void cfg(string dp, string el, string nodeId, int datatype, int direction)');
 L.push('{');
 L.push('  string dpe = dp + "." + el;');
