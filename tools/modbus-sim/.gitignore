@@ -1,0 +1,6 @@
+# Журналы работы сервера
+server.log
+server.log.err
+
+# node_modules не нужен: у сервера нет зависимостей
+node_modules/

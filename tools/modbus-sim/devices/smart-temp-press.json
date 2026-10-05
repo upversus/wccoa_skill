@@ -1,0 +1,64 @@
+{
+  "//": "Умный контроллер температуры и давления. Адресное пространство построено по референсу пользователя.",
+  "//wordOrder": "CDAB - проверено на эталонной карте map.json: драйвер WinCC OA 3.18 ждёт младшее слово первым. С ABCD все float-значения приходили перевёрнутыми.",
+  "port": 504,
+  "wordOrder": "CDAB",
+  "devices": [
+    {
+      "id": 1,
+      "name": "SmartTempPress",
+
+      "input": [
+        { "addr": 0, "name": "Device_Ready",       "gen": { "type": "const",  "value": 1 } },
+        { "addr": 1, "name": "Heating_Active",     "gen": { "type": "toggle", "periodMs": 7000 } },
+        { "addr": 2, "name": "Cooling_Active",     "gen": { "type": "toggle", "periodMs": 11000 } },
+        { "addr": 3, "name": "Alarm_High_Temp",    "gen": { "type": "toggle", "periodMs": 17000 } },
+        { "addr": 4, "name": "Alarm_Low_Temp",     "gen": { "type": "toggle", "periodMs": 19000 } },
+        { "addr": 5, "name": "Alarm_High_Pressure","gen": { "type": "toggle", "periodMs": 23000 } },
+        { "addr": 6, "name": "Alarm_Low_Pressure", "gen": { "type": "toggle", "periodMs": 29000 } },
+        { "addr": 7, "name": "Sensor_Fault",       "gen": { "type": "toggle", "periodMs": 37000 } }
+      ],
+
+      "coils": [
+        { "addr": 0, "name": "Enable_Heating",    "gen": { "type": "toggle", "periodMs": 8000 } },
+        { "addr": 1, "name": "Enable_Cooling",    "gen": { "type": "toggle", "periodMs": 12000 } },
+        { "addr": 2, "name": "Reset_Alarms",      "gen": { "type": "toggle", "periodMs": 15000 } },
+        { "addr": 3, "name": "Start_Calibration", "gen": { "type": "toggle", "periodMs": 21000 } },
+        { "addr": 4, "name": "Relay_1",           "gen": { "type": "toggle", "periodMs": 25000 } },
+        { "addr": 5, "name": "Relay_2",           "gen": { "type": "toggle", "periodMs": 31000 } }
+      ],
+
+      "ireg": [
+        { "addr": 0, "count": 1, "signed": true,  "name": "Current_Temperature", "gen": { "type": "sineInt", "min": 180,  "max": 320, "periodMs": 15000 } },
+        { "addr": 1, "count": 1, "signed": false, "name": "Current_Pressure",    "gen": { "type": "sineInt", "min": 12,   "max": 48,  "periodMs": 13000 } },
+        { "addr": 2, "count": 1, "signed": false, "name": "Humidity",            "gen": { "type": "sineInt", "min": 350,  "max": 620, "periodMs": 17000 } },
+        { "addr": 3, "count": 1, "signed": false, "name": "Heater_Power",        "gen": { "type": "sineInt", "min": 0,    "max": 1000, "periodMs": 9000 } },
+        { "addr": 4, "count": 1, "signed": false, "name": "Cooler_Power",        "gen": { "type": "sineInt", "min": 0,    "max": 1000, "periodMs": 11000 } },
+        { "addr": 5, "count": 1, "signed": false, "name": "Device_Status_Word",  "gen": { "type": "const",  "value": 27 } },
+        { "addr": 6, "count": 2, "signed": false, "name": "Total_Operating_Hours","gen": { "type": "ramp",  "min": 40000, "max": 41000, "periodMs": 20000 } },
+        { "addr": 8, "count": 2, "signed": false, "name": "Energy_Consumption",  "gen": { "type": "sine",   "min": 120,   "max": 480, "periodMs": 21000 } }
+      ],
+
+      "holding": [
+        { "addr": 0,  "count": 1, "signed": true,  "name": "Temperature_Setpoint",       "gen": { "type": "ramp", "min": 200, "max": 280, "periodMs": 25000 } },
+        { "addr": 1,  "count": 1, "signed": false, "name": "Pressure_Setpoint",          "gen": { "type": "ramp", "min": 15,  "max": 40,  "periodMs": 23000 } },
+        { "addr": 2,  "count": 1, "signed": false, "name": "Humidity_Setpoint",          "gen": { "type": "ramp", "min": 400, "max": 550, "periodMs": 27000 } },
+        { "addr": 3,  "count": 1, "signed": false, "name": "PID_Kp",                     "gen": { "type": "ramp", "min": 100, "max": 300, "periodMs": 19000 } },
+        { "addr": 4,  "count": 1, "signed": false, "name": "PID_Ki",                     "gen": { "type": "ramp", "min": 10,  "max": 60,  "periodMs": 21000 } },
+        { "addr": 5,  "count": 1, "signed": false, "name": "PID_Kd",                     "gen": { "type": "ramp", "min": 5,   "max": 30,  "periodMs": 29000 } },
+        { "addr": 6,  "count": 1, "signed": false, "name": "Max_Heater_Power",           "gen": { "type": "ramp", "min": 600, "max": 900, "periodMs": 31000 } },
+        { "addr": 7,  "count": 1, "signed": false, "name": "Max_Cooler_Power",           "gen": { "type": "ramp", "min": 500, "max": 800, "periodMs": 33000 } },
+        { "addr": 8,  "count": 1, "signed": true,  "name": "Alarm_High_Temp_Threshold",  "gen": { "type": "ramp", "min": 300, "max": 400, "periodMs": 35000 } },
+        { "addr": 9,  "count": 1, "signed": true,  "name": "Alarm_Low_Temp_Threshold",   "gen": { "type": "ramp", "min": 0,   "max": 80,  "periodMs": 37000 } },
+        { "addr": 10, "count": 1, "signed": false, "name": "Alarm_High_Pressure_Threshold","gen": { "type": "ramp", "min": 45, "max": 90,  "periodMs": 39000 } },
+        { "addr": 11, "count": 1, "signed": false, "name": "Alarm_Low_Pressure_Threshold","gen": { "type": "ramp", "min": 2,   "max": 20,  "periodMs": 41000 } },
+        { "addr": 12, "count": 1, "signed": false, "name": "Device_Address",            "gen": { "type": "const", "value": 1 } },
+        { "addr": 13, "count": 1, "signed": false, "name": "Baud_Rate_Code",            "gen": { "type": "const", "value": 4 } },
+        { "addr": 14, "count": 1, "signed": false, "name": "Parity_Code",               "gen": { "type": "const", "value": 0 } },
+        { "addr": 15, "count": 1, "signed": false, "name": "Stop_Bits",                 "gen": { "type": "const", "value": 1 } },
+        { "addr": 16, "count": 2, "signed": false, "name": "Serial_Number",             "gen": { "type": "const", "value": 987654321 } },
+        { "addr": 18, "count": 2, "signed": false, "name": "Firmware_Version",          "gen": { "type": "const", "value": 3.14 } }
+      ]
+    }
+  ]
+}
