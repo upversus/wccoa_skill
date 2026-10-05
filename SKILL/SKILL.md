@@ -1,7 +1,26 @@
+---
+name: winccoa-ctl
+description: >-
+  Use when working with WinCC OA 3.18 datapoints from CTL - creating and deleting
+  points and types (dpCreate, dpDelete, dpTypeCreate), reading and writing values
+  (dpGet, dpSet, dpGetAllAttributes), building configs (dpSetTimedWait,
+  dpCopyConfig), or binding peripheral addresses _address for Modbus and OPC UA
+  drivers. Covers the full pipeline from a user-supplied address map to a live
+  datapoint: map validation, CTL generation, OPC UA server browsing with
+  opcuactl, poll groups, direction and datatype codes, and diagnosing addresses
+  that are silently not polled. Use ONLY for WinCC OA CTL scripting; not for
+  GEDI or panel functions.
+---
+
 # WinCC OA 3.18 — работа с точками данных из CTL
 
 Справочник проверенных функций, примеры и инструменты. Каждое утверждение
 здесь проверено запуском на живом проекте, а не взято из документации.
+
+Все пути в этом скилле относительны и отсчитываются от каталога скилла,
+то есть от папки, где лежит этот файл. Например `docs/11-address.md` это
+`<каталог скилла>/docs/11-address.md`. Когда нужно вызвать инструмент из
+PowerShell, сначала перейди в каталог скилла.
 
 ## Три правила, нарушение которых дороже всего стоит
 
