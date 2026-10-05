@@ -55,6 +55,8 @@ const resolve = endpoint && !flag('no-resolve');
 const verify = !flag('no-verify');
 const keep = flag('keep');
 const allowMissing = flag('allow-missing');
+const startNode = opt('start', 'i=85');
+const depth = Number(opt('depth', '12'));
 
 // ------------------------------------------------- таблицы типов OPC UA
 // Источник: scripts/libs/examples/opcuactl..., точнее
@@ -200,8 +202,8 @@ function opcuactlPath() {
   return candidates[0];
 }
 
-let index = new Map();   // nodeId -> { dataType, value, status }
-let serverTypes = null;
+let index = new Map();   // nodeId -> { dataType, accessLevel, ... }
+let serverNodes = 0;
 
 if (resolve) {
   const exe = opcuactlPath();
@@ -212,20 +214,33 @@ if (resolve) {
   }
   let raw;
   try {
+    // Источник метаданных - export nodes --include-attrs, а НЕ get vars.
+    //
+    // get vars отдаёт только nodeId, browseName, displayName,
+    // typeDefinition, dataType, value, status. AccessLevel там НЕТ, а без
+    // него нельзя отличить узел для чтения от узла для записи.
+    //
+    // export nodes --include-attrs отдаёт за одну команду nodeId, nodeClass,
+    // dataType, accessLevel, userAccessLevel, typeDefinition, depth.
+    // Значения при этом не читаются, и обход получается заметно быстрее.
     raw = execFileSync(exe,
-      ['get', 'vars', '-e', endpoint, '--node', 'i=85', '--recursive', '-f', 'json'],
+      ['export', 'nodes', '-e', endpoint, '-n', startNode,
+        '--depth', String(depth), '--include-attrs', '-f', 'json'],
       { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
   } catch (e) {
     console.error(`Ошибка обхода сервера ${endpoint}: ${e.message}`);
     process.exit(2);
   }
-  const vars = JSON.parse(raw);
-  for (const v of vars) {
-    if (SKIP_SUFFIX.test(v.nodeId)) { continue; }
-    index.set(v.nodeId, v);
+  const nodes = JSON.parse(raw);
+  serverNodes = nodes.length;
+  for (const n of nodes) {
+    // Узел - это переменная. Объекты и папки AccessLevel не имеют.
+    if (n.nodeClass !== 'NodeClassVariable') { continue; }
+    if (SKIP_SUFFIX.test(n.nodeId)) { continue; }
+    index.set(n.nodeId, n);
   }
-  serverTypes = vars.length;
-  console.error(`[обход] ${endpoint}: переменных ${vars.length}, содержательных ${index.size}`);
+  console.log(`[обход] ${endpoint} от ${startNode}: узлов ${serverNodes}, `
+    + `переменных ${index.size}`);
 }
 
 // ------------------------------------------------------ сбор элементов
@@ -275,11 +290,25 @@ for (const t of tags) {
     continue;
   }
 
-  const accessLevel = onServer && onServer.accessLevel !== undefined
-    ? Number(onServer.accessLevel) : null;
-  let direction = DIR_RO;
-  if (accessLevel === 3) { direction = DIR_RW; }
-  else if (/rw/i.test(t.access || '')) { direction = DIR_RW; }
+  // Направление определяем по AccessLevel, который вернул export nodes.
+  // Он приходит строкой вида "AccessLevelType(3)": 1 - чтение,
+  // 2 - запись, 3 - чтение и запись. Если сервер не отдал атрибут,
+  // откатываемся на Client Access из карты.
+  //
+  // Раньше здесь стояла проверка /rw/i по строке карты, и она не
+  // совпадала с "R/W": буквы разделены слэшем. Все точки создавались
+  // read-only, то есть запись в них была невозможна.
+  let accessLevel = null;
+  if (onServer && onServer.accessLevel) {
+    const m = /\((\d+)\)/.exec(String(onServer.accessLevel));
+    if (m) { accessLevel = Number(m[1]); }
+  }
+  const access = String(t.access || '');
+  const fromMap = /^\s*r\s*\/?\s*w/i.test(access)
+    || /read\s*\/?\s*write/i.test(access)
+    || /^\s*rw\s*$/i.test(access);
+  const writable = (accessLevel === null) ? fromMap : (accessLevel & 2) !== 0;
+  const direction = writable ? DIR_RW : DIR_RO;
 
   const base = safeName(t.name, `Tag_${elems.length + 1}`);
   elems.push({
@@ -290,7 +319,9 @@ for (const t of tags) {
     datatype: T[type],
     elemType: ELEM[type],
     direction,
-    access: accessLevel === null ? t.access : `AccessLevel=${accessLevel}`,
+    access: accessLevel === null
+      ? (t.access || '?')
+      : 'AccessLevelType(' + accessLevel + ')',
   });
 }
 
