@@ -23,11 +23,25 @@
 // из CTL не удалось: работает только попытка чтения. Поэтому проверять
 // наличие узла в подписке приходится чтением значения.
 //
-// ТИПЫ: в таблице преобразований OPC UA нет кода для беззнакового 16-битного.
-// Сервер отдаёт UInt16, а доступны BOOLEAN 751, INT16 754, INT32 756,
-// FLOAT 760, DOUBLE 761, STRING 762. Взято INT16 754. ОСТОРОЖНО: узел
-// этого стенда растёт за 32767, и тогда INT16 станет отрицательным.
-// Для беззнаковых значений бери INT32 756.
+// ТИПЫ: полная таблица в scripts/libs/examples/opcuaImportExample.ctl,
+// enum OPCUATransformation: DEFAULT 750, BOOLEAN 751, SBYTE 752, BYTE 753,
+// INT16 754, UINT16 755, INT32 756, UINT32 757, INT64 758, UINT64 759,
+// FLOAT 760, DOUBLE 761, STRING 762, DATETIME 763, GUID 764,
+// BYTESTRING 765, XMLELEMENT 766, NODEID 767, LOCALIZEDTEXT 768.
+//
+// ВНИМАНИЕ, здесь была ошибка. Раньше в шапке стояло, что кода для
+// беззнакового 16-битного нет и надо брать INT32 756. Это неверно:
+// UINT16 = 755 существует. Ошибка arose из неполной таблицы на шесть
+// кодов в 03_address_opcua_types.ctl.
+//
+// Сервер отдаёт Tag1 как UInt16, и ниже стоит INT16 754 - это НЕВЕРНО для
+// этого узла. Правильно 755. На стенде расхождение не проявилось, потому
+// что значение не доросло до 32767, где INT16 стал бы отрицательным.
+//
+// Направление - полный список там же, enum OPCUADirectionAndReceiveMode:
+// output 1, inputSingleQuery 3, inputPolling 4, inputOutputPolling 7,
+// inputOutputSingleQuery 8. Выбор по AccessLevel узла: бит 0 чтение,
+// бит 1 запись.
 //
 // Запуск:
 //   .\examples\run-ctl.ps1 -Script .\examples\11-address\22_address_opcua_live.ctl
@@ -43,6 +57,7 @@ const int ELEMENT_ID = 1;
 
 int ADDR_DATATYPE_BOOLEAN = 751;
 int ADDR_DATATYPE_INT16   = 754;
+int ADDR_DATATYPE_UINT16  = 755;
 int ADDR_DATATYPE_INT32   = 756;
 int ADDR_DATATYPE_FLOAT   = 760;
 
@@ -64,8 +79,8 @@ main()
   string prefix = SERVER + "$" + SUB + "$" + VARIANT_ID + "$" + ELEMENT_ID + "$";
   DebugN("  префикс адреса: ", prefix);
 
-  cfg(dpName + ".Tag1", prefix + "ns=2;s=Channel1.Device1.Tag1", ADDR_DATATYPE_INT16);
-  cfg(dpName + ".Tag2", prefix + "ns=2;s=Channel1.Device1.Tag2", ADDR_DATATYPE_INT16);
+  cfg(dpName + ".Tag1", prefix + "ns=2;s=Channel1.Device1.Tag1", ADDR_DATATYPE_UINT16);
+  cfg(dpName + ".Tag2", prefix + "ns=2;s=Channel1.Device1.Tag2", ADDR_DATATYPE_UINT16);
 
   DebugN("");
   DebugN("=== ждём данные до 40 с ===");

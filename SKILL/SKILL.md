@@ -139,10 +139,11 @@ $env:WCCOA_CTRL_EXE = 'D:\WinCCOA\3.18\bin\WCCOActrl.exe'
 - **Состав подписки не перечислить из CTL.** `dpGetAllAttributes` и
   `dpGetAllConfigs` на точках типа `_OPCUAServer` и `_OPCUASubscription`
   возвращают ноль элементов. Проверять наличие узла можно только чтением.
-- **В таблице типов OPC UA нет беззнакового 16-битного.** Есть `BOOLEAN`
-  751, `INT16` 754, `INT32` 756, `FLOAT` 760, `DOUBLE` 761, `STRING` 762.
-  Для серверного `UInt16` приходится брать `INT32` 756: с `INT16` 754
-  значение больше 32767 станет отрицательным.
+- **В таблице типов OPC UA 19 кодов, а не 6.** Полный список в
+  `scripts/libs/examples/opcuaImportExample.ctl`, enum `OPCUATransformation`,
+  от `DEFAULT = 750` до `LOCALIZEDTEXT = 768`. Беззнаковые есть, включая
+  `UINT16 = 755` и `UINT32 = 757`. Таблица из шести кодов в примерах
+  неполная, и на ней легко ошибиться типом.
 - **Разделы `docs/04-write.md`, `docs/05-subscribe.md`, `docs/08-alerts.md`
   без примеров скриптов.** Текст есть, готовых проверенных `.ctl` нет.
   `examples/04-write/` пуст.
