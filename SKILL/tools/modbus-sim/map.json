@@ -1,0 +1,100 @@
+{
+  "//": "Карта адресов Modbus для стенда WinCC OA. Правь этот файл - сервер подхватит изменения сам, перезапускать не нужно.",
+  "port": 504,
+  "wordOrder": "CDAB",
+  "floatTolerance": 0.001,
+
+  "devices": [
+    {
+      "id": 1,
+      "name": "Насос",
+      "coils": [
+        { "addr": 0, "name": "Pump_Start",   "gen": { "type": "toggle", "periodMs": 5000 } },
+        { "addr": 1, "name": "Pump_Stop",    "gen": { "type": "toggle", "periodMs": 7000 } },
+        { "addr": 2, "name": "Pump_Run",     "gen": { "type": "toggle", "periodMs": 9000 } },
+        { "addr": 3, "name": "Pump_Fault",   "gen": { "type": "toggle", "periodMs": 13000 } }
+      ],
+      "holding": [
+        { "addr": 0, "count": 1, "name": "Pump_Speed_Set", "gen": { "type": "ramp", "min": 40, "max": 90, "periodMs": 8000 } },
+        { "addr": 1, "count": 1, "name": "Pump_Speed_Act", "gen": { "type": "sine", "min": 35, "max": 95, "periodMs": 6000 } },
+        { "addr": 2, "count": 2, "name": "Pump_Current",   "gen": { "type": "sine", "min": 9, "max": 16, "periodMs": 10000 } },
+        { "addr": 4, "count": 2, "name": "Pump_Pressure",  "gen": { "type": "sine", "min": 2.4, "max": 3.6, "periodMs": 12000 } },
+        { "addr": 6, "count": 2, "name": "Pump_Flow",      "gen": { "type": "sine", "min": 18, "max": 30, "periodMs": 14000 } },
+        { "addr": 8, "count": 1, "name": "Pump_Runtime",   "gen": { "type": "ramp", "min": 800, "max": 1200, "periodMs": 20000 } }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Датчик температуры",
+      "coils": [
+        { "addr": 0, "name": "Temp_Alarm_High",   "gen": { "type": "toggle", "periodMs": 11000 } },
+        { "addr": 1, "name": "Temp_Alarm_Low",    "gen": { "type": "toggle", "periodMs": 17000 } },
+        { "addr": 2, "name": "Temp_Sensor_Fault", "gen": { "type": "toggle", "periodMs": 23000 } }
+      ],
+      "holding": [
+        { "addr": 0, "count": 2, "name": "Temperature",     "gen": { "type": "sine", "min": 15, "max": 35, "periodMs": 15000 } },
+        { "addr": 2, "count": 1, "name": "Temperature_Int", "gen": { "type": "sineInt", "min": 150, "max": 350, "periodMs": 15000 } },
+        { "addr": 3, "count": 1, "name": "Temp_Setpoint",   "gen": { "type": "ramp", "min": 20, "max": 30, "periodMs": 9000 } }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Расходомер",
+      "coils": [
+        { "addr": 0, "name": "Flow_Alarm",        "gen": { "type": "toggle", "periodMs": 8000 } },
+        { "addr": 1, "name": "Flow_Sensor_Fault", "gen": { "type": "toggle", "periodMs": 19000 } }
+      ],
+      "holding": [
+        { "addr": 0, "count": 2, "name": "Flow_Instant",  "gen": { "type": "sine", "min": 4, "max": 12, "periodMs": 11000 } },
+        { "addr": 2, "count": 2, "name": "Flow_Total",    "gen": { "type": "ramp", "min": 4000, "max": 6000, "periodMs": 30000 } },
+        { "addr": 4, "count": 1, "name": "Flow_Int",      "gen": { "type": "sineInt", "min": 40, "max": 120, "periodMs": 11000 } },
+        { "addr": 5, "count": 1, "name": "Flow_Setpoint", "gen": { "type": "ramp", "min": 8, "max": 14, "periodMs": 13000 } }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "Датчик давления",
+      "coils": [
+        { "addr": 0, "name": "Pressure_Alarm_High",   "gen": { "type": "toggle", "periodMs": 6000 } },
+        { "addr": 1, "name": "Pressure_Alarm_Low",    "gen": { "type": "toggle", "periodMs": 12000 } },
+        { "addr": 2, "name": "Pressure_Sensor_Fault", "gen": { "type": "toggle", "periodMs": 21000 } }
+      ],
+      "holding": [
+        { "addr": 0, "count": 2, "name": "Pressure",          "gen": { "type": "sine", "min": 3.5, "max": 5.5, "periodMs": 16000 } },
+        { "addr": 2, "count": 1, "name": "Pressure_Int",      "gen": { "type": "sineInt", "min": 350, "max": 550, "periodMs": 16000 } },
+        { "addr": 3, "count": 1, "name": "Pressure_Setpoint", "gen": { "type": "ramp", "min": 4, "max": 6, "periodMs": 10000 } }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "Уровнемер",
+      "coils": [
+        { "addr": 0, "name": "Level_Alarm_High",   "gen": { "type": "toggle", "periodMs": 7500 } },
+        { "addr": 1, "name": "Level_Alarm_Low",    "gen": { "type": "toggle", "periodMs": 13500 } },
+        { "addr": 2, "name": "Level_Sensor_Fault", "gen": { "type": "toggle", "periodMs": 24000 } }
+      ],
+      "holding": [
+        { "addr": 0, "count": 2, "name": "Level",          "gen": { "type": "sine", "min": 25, "max": 75, "periodMs": 18000 } },
+        { "addr": 2, "count": 1, "name": "Level_Int",      "gen": { "type": "sineInt", "min": 250, "max": 750, "periodMs": 18000 } },
+        { "addr": 3, "count": 1, "name": "Level_Setpoint", "gen": { "type": "ramp", "min": 40, "max": 70, "periodMs": 11000 } }
+      ]
+    },
+    {
+      "id": 6,
+      "name": "Клапан",
+      "coils": [
+        { "addr": 0, "name": "Valve_Open",   "gen": { "type": "toggle", "periodMs": 5500 } },
+        { "addr": 1, "name": "Valve_Close",  "gen": { "type": "toggle", "periodMs": 9500 } },
+        { "addr": 2, "name": "Valve_Opened", "gen": { "type": "toggle", "periodMs": 14000 } },
+        { "addr": 3, "name": "Valve_Closed", "gen": { "type": "toggle", "periodMs": 16000 } },
+        { "addr": 4, "name": "Valve_Fault",  "gen": { "type": "toggle", "periodMs": 25000 } }
+        ,{ "addr": 5, "name": "Valve_Cmd_Test", "gen": { "type": "const", "value": false } }
+      ],
+      "holding": [
+        { "addr": 0, "count": 2, "name": "Valve_Position", "gen": { "type": "sine", "min": 20, "max": 90, "periodMs": 17000 } },
+        { "addr": 2, "count": 1, "name": "Valve_Setpoint", "gen": { "type": "ramp", "min": 30, "max": 80, "periodMs": 12000 } }
+        ,{ "addr": 3, "count": 1, "name": "Valve_Reg_Test", "gen": { "type": "const", "value": 0 } }
+      ]
+    }
+  ]
+}
