@@ -33,8 +33,8 @@ PowerShell, сначала перейди в каталог скилла.
 
 1. `docs/99-reference.md` — сводная таблица, там всё, что уже проверено.
 2. `docs/<этап>.md` по названию операции.
-3. `C:\Sybcom\Kaskad\3.18\scripts\libs\` — исходники библиотек.
-4. `C:\Sybcom\Kaskad\3.18\scripts\gedi\` — если функция из GEDI.
+3. `<wincc_oa_path>\scripts\libs\` — исходники библиотек.
+4. `<wincc_oa_path>\scripts\gedi\` — если функция из GEDI.
 
 Существуют `dpGetAllAttributes`, `dpGetAllDetails`, `dpGetAllConfigs`,
 `dpGetElementType`, `dpTypeGet`, `dpNames`.
@@ -127,8 +127,11 @@ PowerShell, сначала перейди в каталог скилла.
 .\examples\run-ctl.ps1 -Script .\examples\11-address\06_address_modbus.ctl
 ```
 
-Путь к интерпретатору берётся из `WCCOA_CTR_EXE`, иначе используется
-`C:\Sybcom\Kaskad\3.18\bin\WCCOActrl.exe`. Если установка в другом месте:
+Путь к интерпретатору ищется так: переменная `WCCOA_CTRL_EXE`, затем
+Путь к интерпретатору ищется так: переменная `WCCOA_CTRL_EXE`, затем
+типовые места установки в `Program Files`. Жёсткого пути в скилле нет —
+намеренно, поэтому на машине с нестандартной установкой переменная
+обязательна:
 
 ```powershell
 $env:WCCOA_CTRL_EXE = 'D:\WinCCOA\3.18\bin\WCCOActrl.exe'

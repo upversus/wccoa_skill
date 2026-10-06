@@ -25,11 +25,11 @@
 | Node.js | 18 и новее | для Modbus, проверялся на 22.22 |
 | OPC UA сервер | любой | только для задач OPC UA |
 
-Путь к интерпретатору CTL берётся из переменной окружения, иначе
-используется `C:\Sybcom\Kaskad\3.18\bin\WCCOActrl.exe`:
+Путь к интерпретатору CTL ищется через переменную `WCCOA_CTRL_EXE`, а
+если она не задана — в типовых местах установки в `Program Files`:
 
 ```powershell
-$env:WCCOA_CT_EXE = 'D:\WinCCOA\3.18\bin\WCCOActrl.exe'
+$env:WCCOA_CTRL_EXE = 'D:\WinCCOA\3.18\bin\WCCOActrl.exe'
 ```
 
 ## Перенос
@@ -97,6 +97,7 @@ node .\tools\gen-modbus-dp.js .\tools\modbus-sim\devices\smart-temp-press.json `
 
 ## Откуда взялось
 
-Проект `prg_12_3` / `P_12_3_mb`, WinCC OA 3.18, драйвер Modbus 2,
-эмулятор на TCP 504. Все оговорки к документации помечены в справочнике явно,
-потому что документация описывает 3.21.6, а стенд 3.18.
+WinCC OA 3.18, драйвер Modbus 2, эмулятор на TCP 504.
+WinCC OA 3.18, драйвер Modbus 2, эмулятор на TCP 504. Стенд тестовый,
+его имя в скилле не упоминается намеренно: так примеры не привязаны
+к одной машине.

@@ -107,13 +107,37 @@ try {
     Write-Warning "Не удалось переключить консоль на UTF-8: $($_.Exception.Message)"
 }
 
-$exe = if ($env:WCCOA_CTRL_EXE) { $env:WCCOA_CTRL_EXE }
-       else { 'C:\Sybcom\Kaskad\3.18\bin\WCCOActrl.exe' }
+# Где взять WCCOActrl.exe.
+#
+# Порядок: переменная WCCOA_CTRL_EXE, затем типовые места установки.
+# Жёсткого пути здесь нет намеренно - у другой машины он всё равно не
+# сработал бы, а сообщение об ошибке уводило бы в сторону.
+$exe = $null
 
-if (-not (Test-Path -LiteralPath $exe)) {
-    throw "Интерпретатор не найден: $exe (задайте переменную WCCOA_CTRL_EXE)"
+if ($env:WCCOA_CTRL_EXE) { $exe = $env:WCCOA_CTRL_EXE }
+else {
+    $candidates = New-Object System.Collections.Generic.List[string]
+    $roots = @($env:ProgramFiles, ${env:ProgramFiles(x86)}, $env:ProgramW6432)
+    foreach ($r in $roots) {
+        if (-not $r) { continue }
+        $oaRoot = Join-Path $r 'WinCC OA'
+        if (-not (Test-Path -LiteralPath $oaRoot)) { continue }
+        foreach ($v in (Get-ChildItem $oaRoot -Directory -ErrorAction SilentlyContinue)) {
+            $candidates.Add((Join-Path $v.FullName 'bin\WCCOActrl.exe'))
+        }
+    }
+    foreach ($c in $candidates) {
+        if (Test-Path -LiteralPath $c) { $exe = $c; break }
+    }
 }
 
+if (-not $exe -or -not (Test-Path -LiteralPath $exe)) {
+    $hint = 'Интерпретатор WCCOActrl.exe не найден. Укажите его одним из способов:'
+    $hint += ' 1) переменная окружения:  $env:WCCOA_CTRL_EXE = ' + [char]39 + '<путь>\bin\WCCOActrl.exe' + [char]39 + [char]10
+    $hint += ' 2) если WinCC OA установлена не в Program Files - переменная окружения обязательна;' + [char]10
+    $hint += ' 3) проверьте путь: где лежит WCCOActrl.exe - там и должна указывать переменная.' + [char]10
+    throw $hint
+}
 # Абсолютный путь — обязательное условие, см. шапку скрипта.
 $scriptPath = (Resolve-Path -LiteralPath $Script).Path
 $workDir = Split-Path -Parent $scriptPath

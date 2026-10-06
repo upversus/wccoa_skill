@@ -20,7 +20,12 @@ chcp 65001 > $null
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 $dir = $PSScriptRoot
-$exe = if ($env:WCCOA_CTRL_EXE) { $env:WCCOA_CTRL_EXE } else { 'C:\Sybcom\Kaskad\3.18\bin\WCCOActrl.exe' }
+# Путь к интерпретатору задаётся переменной окружения: жёсткий путь
+# одного стенда здесь не нужен и ломал бы скрипт на любой другой машине.
+if (-not $env:WCCOA_CTRL_EXE) {
+    throw 'Задайте $env:WCCOA_CTRL_EXE полным путём к WCCOActrl.exe.'
+}
+$exe = $env:WCCOA_CTRL_EXE
 
 # Значение -num обязано быть меньше 255, иначе интерпретатор завершается
 # с кодом 1, не печатая ничего.
