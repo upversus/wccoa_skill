@@ -71,10 +71,14 @@ node .\tools\gen-modbus-dp.js .\tools\modbus-sim\devices\smart-temp-press.json `
 
 ## Лицензии и сторонние компоненты
 
+Скилл распространяется под **MIT** — текст в файле `LICENSE` в корне.
+Можно копировать, менять и использовать, в том числе в коммерческих
+проектах; при распространении нужно сохранить уведомление об авторстве.
+
 | Компонент | Лицензия | Что сделать при публикации |
 | --- | --- | --- |
-| содержимое `docs/`, `examples/`, `playbooks/` | определяется владельцем | решить лицензию папки |
-| `tools/gen-modbus-dp.js`, `tools/modbus-sim/*` | определяется владельцем | то же |
+| содержимое `docs/`, `examples/`, `playbooks/` | **MIT**, файл `LICENSE` в корне | ничего, лицензия уже приложена |
+| `tools/gen-modbus-dp.js`, `tools/modbus-sim/*` | **MIT**, файл `LICENSE` в корне | ничего, лицензия уже приложена |
 | `tools/opcuactl/opcuactl.exe` | **MIT**, `github.com/otfabric/opcuactl` | текст лицензии уже лежит рядом, в `tools/opcuactl/LICENSE` |
 
 Двоичный файл `opcuactl.exe` — 8,1 МБ, windows/amd64, версия 0.2.0.
@@ -97,7 +101,6 @@ node .\tools\gen-modbus-dp.js .\tools\modbus-sim\devices\smart-temp-press.json `
 
 ## Откуда взялось
 
-WinCC OA 3.18, драйвер Modbus 2, эмулятор на TCP 504.
 WinCC OA 3.18, драйвер Modbus 2, эмулятор на TCP 504. Стенд тестовый,
 его имя в скилле не упоминается намеренно: так примеры не привязаны
 к одной машине.
