@@ -123,7 +123,8 @@ function checkSpace(dev, space) {
   }
 
   const seen = new Map();
-  let expected = 0;
+  // null = адреса ещё не было: первый регистр блока может начинаться с любого
+  let expected = null;
   let dynamic = 0;
   let constOnly = 0;
 
@@ -139,11 +140,17 @@ function checkSpace(dev, space) {
     seen.set(reg.addr, reg);
 
     // Непрерывность. Дыра внутри блока заставит драйвер опрашивать по одному.
-    if (reg.addr !== expected) {
+    // А начало блока ничем не ограничено: устройство вполне может отвечать
+    // только на 10..13, и такой блок разрывом не является.
+    if (expected !== null && reg.addr < expected) {
+      fail(`slave ${dev.id} ${space} (FC${meta.fc}): перекрытие - адрес ` +
+           `${reg.addr} ("${reg.name}") уже занят предыдущим регистром, ` +
+           `свободным был ${expected}.`);
+    }
+    else if (expected !== null && reg.addr > expected) {
       fail(`slave ${dev.id} ${space} (FC${meta.fc}): разрыв - ожидался адрес ` +
            `${expected}, а следующий ${reg.addr} ("${reg.name}"). ` +
            `Драйвер может не опрашивать блок.`);
-      expected = reg.addr;
     }
 
     const count = reg.count || 1;

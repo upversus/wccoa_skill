@@ -101,14 +101,16 @@ function checkContinuity() {
     for (const [space, list] of spaces) {
       if (!list) continue;
       const sorted = [...list].sort((a, b) => a.addr - b.addr);
-      let expect = 0;
+      // null = первого адреса ещё не было. Начало блока ничем не
+      // ограничено: устройство может отвечать только на 10..13.
+      let expect = null;
       for (const reg of sorted) {
-        if (reg.addr !== expect) {
+        if (expect !== null && reg.addr !== expect) {
           console.warn(
-            `[карта] ВНИМАНИЕ slave ${dev.id} ${space}: разрыв перед адресом ` +
-            `${reg.addr}, ожидался ${expect}. Драйвер может не опрашивать блок.`
+            `[карта] ВНИМАНИЕ slave ${dev.id} ${space}: `
+              + (reg.addr < expect ? "перекрытие" : "разрыв")
+              + ` перед адресом ${reg.addr}, ожидался ${expect}. Драйвер может не опрашивать блок.`
           );
-          expect = reg.addr;
         }
         expect = reg.addr + (reg.count || 1);
       }

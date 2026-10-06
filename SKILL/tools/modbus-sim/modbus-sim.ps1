@@ -161,6 +161,15 @@ function Show-Tail($file) {
     }
 }
 
+function Show-Err($file) {
+    if (-not (Test-Path $file)) { return }
+    $lines = Get-Content $file -Encoding UTF8 -Tail 8
+    if ($lines) {
+        Write-Host '--- ПРЕДУПРЕЖДЕНИЯ СЕРВЕРА (server.log.err) ---'
+        $lines | ForEach-Object { "  $_" }
+    }
+}
+
 function Show-Status {
     # Что открыл сервер на самом деле. Сервер пишет это в свой баннер, и
     # единственный честный источник - он: параметры этого скрипта могут
@@ -205,7 +214,7 @@ function Show-Status {
         Write-Host 'GUI-эмулятор mtcpServerEmulator: ЗАПУЩЕН - он конкурирует за порт'
     }
 
-    if ($procs) { Show-Tail $log }
+    if ($procs) { Show-Tail $log; Show-Err $err }
 }
 
 switch ($Action) {
