@@ -1,14 +1,13 @@
 ﻿<#
     selftest.ps1 - проверка, что modbus-sim.ps1 запускает сервер ТОТ картой,
-    которую запросили, и не врёт в отчёте.
+    которую запросили, не врёт в отчёте и не пишет в каталог скилла.
 
-    Проверяет три утверждения:
+    Четыре группы утверждений:
       1. сервер загрузил карту из -Map, а не дефолтную map.json;
       2. число устройств в баннере соответствует этой карте;
-      3. строка "Карта:" в status совпадает с тем, что сервер реально открыл.
-
-    Третье проверялось последним и ловило именно тот дефект, из-за которого
-    прибор можно было бы измерять не тем устройством, о котором думаешь.
+      3. строка "Карта:" в status совпадает с тем, что сервер реально открыл;
+      4. журналы сервера лежат во временном каталоге, а не рядом с
+         modbus-sim.ps1 - иначе скилл нельзя положить в read-only каталог.
 
     Запуск:  .\selftest.ps1
     Код возврата: 0 - всё прошло, 1 - есть провалы.
@@ -22,7 +21,17 @@ $OutputEncoding = [System.Text.Encoding]::UTF8
 
 $here = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $sim = Join-Path $here 'modbus-sim.ps1'
-$log = Join-Path $here 'server.log'
+
+# Каталог журналов по контракту: вне скилла.
+$logDir = Join-Path $env:TEMP 'wccoa-mbsim'
+$logNew = Join-Path $logDir 'server.log'
+$logOld = Join-Path $here 'server.log'
+
+function Find-Log {
+    if (Test-Path $logNew) { return $logNew }
+    if (Test-Path $logOld) { return $logOld }
+    return $logNew
+}
 
 $pass = 0
 $fail = 0
@@ -71,6 +80,7 @@ try {
     $out = & $sim -Action start -Map $map 2>&1 | Out-String
     Write-Host $out.Trim()
 
+    $log = Find-Log
     $banner = if (Test-Path $log) { Get-Content -LiteralPath $log -Encoding UTF8 | Out-String } else { '' }
 
     # 1. Сервер должен открыть именно запрошенную карту.
@@ -92,11 +102,10 @@ try {
     }
 
     # 3. Отчёт status не должен называть не ту карту.
-    # Write-Host в PowerShell 5.1 не попадает в stdout, поэтому перенаправляем
-    # все потоки в файл: иначе ассерт проверял бы пустую строку.
     $statusOut = Join-Path $tmp 'status.txt'
     & $sim -Action status *> $statusOut
     $st = Get-Content -LiteralPath $statusOut -Encoding UTF8 -Raw
+    $said = ''
     if ($st -match '(?m)^Карта:\s+(.+?)\s{2,}') { $said = $Matches[1].Trim() }
     $opened = ''
     if ($banner -match '\[сервер\] правь (.+?) - изменения') { $opened = $Matches[1].Trim() }
@@ -104,6 +113,17 @@ try {
         Ok 'status называет ту же карту, что открыл сервер' $said
     } else {
         No 'status называет ту же карту, что открыл сервер' ("status говорит '$said', сервер открыл '$opened'")
+    }
+
+    # 4. Журналы не должны появляться в каталоге скилла.
+    $inSkill = @()
+    foreach ($n in @('server.log', 'server.log.err')) {
+        if (Test-Path (Join-Path $here $n)) { $inSkill += $n }
+    }
+    if ($inSkill.Count -eq 0) {
+        Ok 'в каталоге скилла нет журналов' ('журнал здесь: ' + $log)
+    } else {
+        No 'в каталоге скилла нет журналов' ('найдено рядом с ps1: ' + ($inSkill -join ', '))
     }
 }
 finally {

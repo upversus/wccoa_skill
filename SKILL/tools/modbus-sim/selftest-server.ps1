@@ -25,8 +25,9 @@ $OutputEncoding = [System.Text.Encoding]::UTF8
 
 $here = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $sim = Join-Path $here 'modbus-sim.ps1'
-$log = Join-Path $here 'server.log'
-$err = Join-Path $here 'server.log.err'
+$logDir = Join-Path $env:TEMP 'wccoa-mbsim'
+$log = Join-Path $logDir 'server.log'
+$err = Join-Path $logDir 'server.log.err'
 
 $pass = 0
 $fail = 0
