@@ -83,8 +83,17 @@ try {
 if (!map.port || typeof map.port !== 'number') {
   fail('Не задан port (число).');
 }
-if (map.wordOrder && !['ABCD', 'CDAB'].includes(map.wordOrder)) {
-  fail(`Неизвестный wordOrder "${map.wordOrder}" - ожидается ABCD или CDAB.`);
+// Драйвер читает только CDAB, и настроить иначе средствами, которые
+// документирует скилл, нельзя. Карта с ABCD проходит проверку молча, а
+// 32-битные значения собираются задом наперёд: замерено 814415872 вместо
+// 12847, плюс bad = 1 и заглушка 2147483647.
+if (map.wordOrder === 'ABCD') {
+  fail(`wordOrder = "ABCD" на этом драйвере читается задом наперёд: ` +
+       `32-битные значения соберутся перевёрнутыми. Драйвер WinCC OA 3.18 ` +
+       `читает только CDAB - поставьте "wordOrder": "CDAB".`);
+}
+else if (map.wordOrder && map.wordOrder !== 'CDAB') {
+  fail(`Неизвестный wordOrder "${map.wordOrder}" - ожидается CDAB.`);
 }
 
 if (!Array.isArray(map.devices) || map.devices.length === 0) {
@@ -160,6 +169,22 @@ function checkSpace(dev, space) {
     }
     if (reg.signed !== undefined && typeof reg.signed !== 'boolean') {
       fail(`slave ${dev.id} ${space} "${reg.name}": signed должно быть true/false.`);
+
+
+      }
+      else if (reg.writable && space !== 'holding') {
+        fail(`slave ${dev.id} ${space} "${reg.name}": writable на ` +
+             `${space} не имеет смысла - запись есть только у holding ` +
+             `(FC6/16). Укажите нужный блок как holding.`);
+      }
+    // Флаг writable помечает параметр, который должен достучать до
+    // устройства. Тип строгий: строка или число молча превратились бы в
+    // подсказку, которой генератор не воспользуется.
+    if (reg.writable !== undefined) {
+      if (typeof reg.writable !== 'boolean') {
+        fail(`slave ${dev.id} ${space} "${reg.name}": writable должно быть ` +
+             `true или false.`);
+    }
     }
     if (count === 2 && reg.signed === undefined) {
       warn(`slave ${dev.id} ${space} "${reg.name}": count=2, signed не указан. ` +

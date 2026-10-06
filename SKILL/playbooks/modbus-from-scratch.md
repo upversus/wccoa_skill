@@ -21,6 +21,7 @@
 ```json
 {
   "//wordOrder": "CDAB - драйвер WinCC OA 3.18 ждёт младшее слово первым",
+  "//writable": "записываемый параметр помечается writable: true, иначе он будет только для чтения",
   "port": 504,
   "wordOrder": "CDAB",
   "devices": [
@@ -37,12 +38,26 @@
                    { "addr": 1, "count": 2, "signed": false, "name": "Energy_Consumption",
                      "gen": { "type": "sine", "min": 120, "max": 480, "periodMs": 21000 } } ],
 
-      "holding": [ { "addr": 0, "count": 1, "signed": true, "name": "Temperature_Setpoint",
+      "holding": [ { "addr": 0, "count": 1, "signed": true, "writable": true, "name": "Temperature_Setpoint",
                      "gen": { "type": "ramp", "min": 200, "max": 280, "periodMs": 25000 } } ]
     }
   ]
 }
 ```
+
+**`writable` — не украшение, а необходимое поле.** Без него любой регистр
+хранения генерируется с `_direction` = 4, то есть **только чтение**. Запись
+в уставку при этом не выдаёт ошибки: `dpSetTimedWait` возвращает `rc = 0`,
+`_reference` заполнен, данные идут, а значение не меняется. Развилка такая:
+
+| `writable` | `_direction` | Что получится |
+| --- | --- | --- |
+| не указан | 4 | запись молча не доходит до устройства |
+| `true` | 7 | запись уходит (FC6/16) |
+| `false` | 4 | то же, что без флага |
+
+У катушек (`coils`) направление 7 ставится всегда, флаг не нужен. На `input`
+и `ireg` флаг отвергается валидатором: записи там нет вовсе.
 
 | Пространство | Код FC | Назначение |
 | --- | --- | --- |

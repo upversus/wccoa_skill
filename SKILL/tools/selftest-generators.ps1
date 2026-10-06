@@ -113,6 +113,47 @@ try {
         if (Has-Bom $op) { No 'OPC UA: BOM отсутствует' 'BOM есть, CTL не запустится' }
         else { Ok 'OPC UA: BOM отсутствует' 'байты чистые' }
     }
+
+
+# ---------------------------------------------- направление записи
+    $mapDir = Join-Path $tmp 'mapdir'
+    $mbDir = Join-Path $tmp 'mbdir.ctl'
+    $mapJson = @'
+{
+  "port": 19504,
+  "wordOrder": "CDAB",
+  "devices": [
+    { "id": 1, "name": "DirFixture", "holding": [
+      { "addr": 0, "count": 1, "signed": false, "name": "Readback",
+        "gen": { "type": "const", "value": 1 } },
+      { "addr": 1, "count": 1, "signed": false, "name": "Setpoint",
+        "writable": true,
+        "gen": { "type": "ramp", "min": 0, "max": 100, "periodMs": 10000 } }
+    ] }
+  ]
+}
+'@
+    Set-Content -LiteralPath $mapDir -Value $mapJson -Encoding ASCII
+    & node (Join-Path $tools 'gen-modbus-dp.js') $mapDir `
+        --out $mbDir --dp DIRTEST --dpt dirtest_t --drv 2 --no-verify 2>&1 | Out-Null
+
+    $cfgLines = @(Get-Content -LiteralPath $mbDir -Encoding UTF8 | Where-Object { $_ -match '^\s*cfg\(' })
+    $set = @($cfgLines | Where-Object { $_ -match '"Setpoint"' })
+    $rd = @($cfgLines | Where-Object { $_ -match '"Readback"' })
+
+    if ($set.Count -eq 1 -and $set[0].Contains(', 7, grp);')) {
+        Ok 'Modbus: writable-параметр получает направление 7' $set[0].Trim()
+    }
+    else {
+        No 'Modbus: writable-параметр получает направление 7' ($set -join ' | ')
+    }
+
+    if ($rd.Count -eq 1 -and $rd[0].Contains(', 4, grp);')) {
+        Ok 'Modbus: обычный holding остаётся только для чтения' $rd[0].Trim()
+    }
+    else {
+        No 'Modbus: обычный holding остаётся только для чтения' ($rd -join ' | ')
+    }
 }
 finally {
     Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue

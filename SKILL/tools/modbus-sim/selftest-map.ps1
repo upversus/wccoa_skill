@@ -46,7 +46,7 @@ $port = 1604
 $TEMPLATE = @'
 {
   "port": __PORT__,
-  "wordOrder": "CDAB",
+  "wordOrder": "__WORDORDER__",
   "devices": [
     { "id": 1, "name": "Fixture", "__SPACE__": [
 __REGS__
@@ -55,10 +55,11 @@ __REGS__
 }
 '@
 
-function Reg($addr, $count, $signed, $name, $gen) {
+function Reg($addr, $count, $signed, $name, $gen, $writable) {
     $s = if ($signed) { 'true' } else { 'false' }
     $g = ($gen | ConvertTo-Json -Compress)
-    return '      { "addr": ' + $addr + ', "count": ' + $count + ', "signed": ' + $s + ', "name": "' + $name + '", "gen": ' + $g + ' }'
+    $w = if ($writable -eq $null -or $writable -eq '') { '' } else { ', "writable": ' + $writable }
+    return '      { "addr": ' + $addr + ', "count": ' + $count + ', "signed": ' + $s + ', "name": "' + $name + '", "gen": ' + $g + $w + ' }'
 }
 
 $ramp = @{ type = 'ramp'; min = 0; max = 100; periodMs = 10000 }
@@ -78,7 +79,11 @@ $cases = @(
     @{ Name = 'hole-inside'; Expect = 1; Space = 'holding'; Regs = @(
             (Reg 10 1 $false 'A' $c1), (Reg 12 1 $false 'B' $c2)) },
     @{ Name = 'overlap'; Expect = 1; Space = 'ireg'; Regs = @(
-            (Reg 0 4 $true 'W0' $ramp), (Reg 2 1 $true 'W1' $c1)) }
+            (Reg 0 4 $true 'W0' $ramp), (Reg 2 1 $true 'W1' $c1)) },
+    @{ Name = 'writable-holding'; Expect = 0; Space = 'holding'; Regs = @((Reg 0 1 $false 'A' $c1 'true')) },
+    @{ Name = 'writable-readonly-space'; Expect = 1; Space = 'input'; Regs = @((Reg 0 1 $false 'A' $c1 'true')) },
+    @{ Name = 'writable-not-bool'; Expect = 1; Space = 'holding'; Regs = @((Reg 0 1 $false 'A' $c1 '"yes"')) },
+    @{ Name = 'wordorder-abcd'; Expect = 1; Space = 'holding'; WordOrder = 'ABCD'; Regs = @((Reg 0 2 $true 'W0' $ramp)) }
 )
 
 try {
@@ -86,7 +91,8 @@ try {
         while ((Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue)) {
             $port += 1
         }
-        $json = $TEMPLATE.Replace('__PORT__', [string]$port).Replace('__SPACE__', $c.Space)
+        $wo = if ($c.WordOrder) { $c.WordOrder } else { 'CDAB' }
+        $json = $TEMPLATE.Replace('__PORT__', [string]$port).Replace('__SPACE__', $c.Space).Replace('__WORDORDER__', $wo)
         $json = $json.Replace('__REGS__', ($c.Regs -join ",`n"))
 
         $file = Join-Path $tmp ($c.Name + '.json')

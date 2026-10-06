@@ -60,6 +60,19 @@ function classify(reg, space) {
   const w = words(reg);
   const bitSpace = (space === 'coils' || space === 'input');
 
+  // Направление: POLL = только чтение, IO = запись доходит до устройства.
+  // Записываемым может быть только holding: у него есть FC3/06/16.
+  // У катушек своя ветка выше, у input/ireg записи нет вовсе, поэтому
+  // флаг writable там игнорируется - это отвергает валидатор.
+  //
+  // По умолчанию holding остаётся только для чтения: так безопаснее,
+  // и раньше это было единственным поведением. Явно помечайте записываемые
+  // параметры через "writable": true, иначе запись в уставку молча ничего
+  // не делает.
+  const dir = (space === 'holding' && reg.writable === true)
+    ? DIRECTION.IO
+    : DIRECTION.POLL;
+
   if (bitSpace) {
     return {
       words: 1,
@@ -74,26 +87,26 @@ function classify(reg, space) {
   if (w === 1) {
     return reg.signed === true
       ? { words: 1, isFloat: false, datatype: DATATYPE.INT16,
-          dpeType: DPEL.INT, direction: DIRECTION.POLL, label: 'INT16' }
+          dpeType: DPEL.INT, direction: dir, label: 'INT16' }
       : { words: 1, isFloat: false, datatype: DATATYPE.UINT16,
-          dpeType: DPEL.INT, direction: DIRECTION.POLL, label: 'UINT16' };
+          dpeType: DPEL.INT, direction: dir, label: 'UINT16' };
   }
 
   if (w === 2) {
     if (isFloat(reg)) {
       return { words: 2, isFloat: true, datatype: DATATYPE.FLOAT,
-               dpeType: DPEL.FLOAT, direction: DIRECTION.POLL, label: 'FLOAT' };
+               dpeType: DPEL.FLOAT, direction: dir, label: 'FLOAT' };
     }
     return reg.signed === true
       ? { words: 2, isFloat: false, datatype: DATATYPE.INT32,
-          dpeType: DPEL.INT, direction: DIRECTION.POLL, label: 'INT32' }
+          dpeType: DPEL.INT, direction: dir, label: 'INT32' }
       : { words: 2, isFloat: false, datatype: DATATYPE.UINT32,
-          dpeType: DPEL.INT, direction: DIRECTION.POLL, label: 'UINT32' };
+          dpeType: DPEL.INT, direction: dir, label: 'UINT32' };
   }
 
   if (w === 4) {
     return { words: 4, isFloat: false, datatype: DATATYPE.UINT32,
-             dpeType: DPEL.INT, direction: DIRECTION.POLL, label: 'UINT32 (64 бита эмулируются в 4 слова)' };
+             dpeType: DPEL.INT, direction: dir, label: 'UINT32 (64 бита эмулируются в 4 слова)' };
   }
 
   return null;
