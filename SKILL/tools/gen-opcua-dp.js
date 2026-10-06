@@ -64,7 +64,7 @@ const depth = Number(opt('depth', '12'));
 
 // ------------------------------------------------- таблицы типов OPC UA
 // Источник: scripts/libs/examples/opcuactl..., точнее
-// C:\Sybcom\Kaskad\3.18\scripts\libs\examples\opcuaImportExample.ctl
+// <wincc_oa_path>\scripts\libs\examples\opcuaImportExample.ctl
 // enum OPCUATransformation. НЕ брать из примеров проекта: там таблица
 // урезанная, и на ней путаешь UInt16 с Int16.
 

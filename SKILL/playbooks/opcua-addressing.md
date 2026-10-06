@@ -88,7 +88,7 @@ string findByType(string want)
 
 ## Типы: полная таблица, а не шесть кодов
 
-Источник: `C:\Sybcom\Kaskad\3.18\scripts\libs\examples\opcuaImportExample.ctl`,
+Источник: `<wincc_oa_path>\scripts\libs\examples\opcuaImportExample.ctl`,
 enum `OPCUATransformation`. Этот файл — эталонный пример импорта от вендора,
 и в нём же константы индексов для разбора обхода.
 
