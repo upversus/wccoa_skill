@@ -63,12 +63,15 @@ function loadMap(reason) {
       `порт ${parsed.port}, порядок слов ${parsed.wordOrder}`
     );
     for (const dev of parsed.devices) {
-      console.log(
-        `         slave ${dev.id} «${dev.name}»: ` +
-        `coils 0..${lastAddr(dev.coils)}, ` +
-        `input 0..${lastAddr(dev.input)}, ` +
-        `ireg 0..${lastAddr(dev.ireg)}, ` +
-        `holding 0..${lastAddr(dev.holding)}`
+        const cs = span(dev.coils), inp = span(dev.input);
+        const ir = span(dev.ireg), hd = span(dev.holding);
+        const fmt = (v) => (v ? `${v[0]}..${v[1]}` : "нет");
+        console.log(
+          `         slave ${dev.id} «${dev.name}»: ` +
+          `coils ${fmt(cs)}, ` +
+          `input ${fmt(inp)}, ` +
+          `ireg ${fmt(ir)}, ` +
+          `holding ${fmt(hd)}`
       );
     }
     checkContinuity();
@@ -84,9 +87,19 @@ function stripJsonComments(text) {
   return text.replace(/^\s*\/\/.*$/gm, '');
 }
 
-function lastAddr(list) {
-  if (!list || list.length === 0) return -1;
-  return list[list.length - 1].addr;
+// Реальный диапазон блока: первый адрес и последний ЗАНЯТЫЙ регистр.
+// Раньше печатали "0..<последний addr>", из-за чего блок со сдвигом
+// выглядел как покрывающий адреса, которых в карте нет.
+function span(list) {
+  if (!list || list.length === 0) return null;
+  let lo = Infinity;
+  let hi = -1;
+  for (const reg of list) {
+    const count = reg.count || 1;
+    if (reg.addr < lo) lo = reg.addr;
+    if (reg.addr + count - 1 > hi) hi = reg.addr + count - 1;
+  }
+  return [lo, hi];
 }
 
 // Проверка непрерывности: именно на этом наступали грабли.

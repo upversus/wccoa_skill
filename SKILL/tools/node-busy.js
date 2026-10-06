@@ -32,6 +32,9 @@ function freePrologue(refList, prefixExpr) {
   // бессмысленно - конфликт не найдётся. Для Modbus префикс пуст,
   // адрес полный сразу.
   const px = prefixExpr || "";
+  // Готовое выражение для CTL. При пустом префиксе (Modbus) печатаем
+  // просто busyRefs[bi], иначе выходит пустой левый операнд.
+  const wantExpr = px ? px + ' + busyRefs[bi]' : 'busyRefs[bi]';
   const L = [];
 L.push('  // ---- проверка занятости узлов, до создания точек ----');
   L.push('  // Один узел нельзя соотнести с двумя точками, и рантайм это не');
@@ -48,7 +51,7 @@ L.push('  // ---- проверка занятости узлов, до созд�
   L.push('  for (int bi = 1; bi <= dynlen(busyRefs); bi++)');
   L.push('  {');
   L.push('    // В _reference лежит полный адрес, сравниваем с префиксом.');
-  L.push('    string want = ' + px + ' + busyRefs[bi];');
+  L.push('    string want = ' + wantExpr + ';');
   L.push('    string own = nodeOwner("", want);');
   L.push('    if (own == "") { freeAll++; continue; }');
   L.push('    if (busyOwner == "") { busyOwner = own; busyAddr = want; }');
