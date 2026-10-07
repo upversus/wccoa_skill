@@ -1,6 +1,6 @@
 // 08_address_opcua_check.ctl - тип с bool, float, int на узлах OPC UA.
 //
-// Сервер: opc.tcp://192.168.0.107:49320 (Kepware KEPServerEX 6)
+// Сервер: opc.tcp://<IP-сервера>:<порт> (Kepware KEPServerEX 6)
 // Драйвер OPC UA в проекте <проект стенда>: WCCOAopcua.exe -num 3
 // Формат адреса: <Art>$<Переменная>$<вариант>$<NodeId>
 //
@@ -78,7 +78,7 @@ main()
   DebugN("Тип точки данных : ", dpt);
   DebugN("Точка данных     : ", dpName);
   DebugN("Драйвер OPC UA   : ", driverNumber);
-  DebugN("Сервер           : opc.tcp://192.168.0.107:49320");
+  DebugN("Сервер           : opc.tcp://<IP-сервера>:<порт> — подставь свой");
   DebugN("  bUser3 -> kep$kep_sub$1$1$ns=2;s=Simulation Examples.Functions.User3  dt 751");
   DebugN("  fSine2 -> kep$kep_sub$1$1$ns=2;s=Simulation Examples.Functions.Sine2  dt 760");
   DebugN("  iRamp4 -> kep$kep_sub$1$1$ns=2;s=Simulation Examples.Functions.Ramp4  dt 756");

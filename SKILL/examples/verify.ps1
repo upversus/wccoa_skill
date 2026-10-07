@@ -28,7 +28,8 @@ param(
     [string]$Project = '<проект стенда>',
     [int]$NumBase = 90,         # номер менеджера; ОДИН на все запуски
     [int]$WaitSeconds = 120,
-    [switch]$ShowOutput         # печатать полный вывод каждого скрипта
+    [switch]$ShowOutput,        # печатать полный вывод каждого скрипта
+    [int]$SimPort = 0           # порт эмулятора Modbus; 0 — взять из map.json
 )
 
 $ErrorActionPreference = 'Stop'
@@ -159,7 +160,24 @@ if ($targets.Count -eq 0) { throw 'К прогону нечего: все отф
 # ---------------------------------------------------------------------------
 # Предупреждения о предусловиях
 # ---------------------------------------------------------------------------
-$modbusOn = @(Get-NetTCPConnection -LocalPort 504 -State Listen -ErrorAction SilentlyContinue)
+# Порт эмулятора Modbus. Логика та же, что в modbus-sim.ps1: -SimPort
+# важнее значения в map.json. Раньше здесь стояло жёсткое 504, поэтому
+# запуск эмулятора на любом другом порту давал ложное «не запущен».
+$simPort = $SimPort
+if ($simPort -le 0) {
+    $mapFile = Join-Path $PSScriptRoot '..\tools\modbus-sim\map.json'
+    try {
+        $rawMap = Get-Content -Raw -Encoding UTF8 $mapFile
+        $rawMap = $rawMap -replace '(?m)^\s*//.*$', ''
+        $simPort = [int](($rawMap | ConvertFrom-Json).port)
+    }
+    catch {
+        Write-Warning "Не удалось прочитать порт из map.json: $($_.Exception.Message). Беру 504."
+        $simPort = 504
+    }
+}
+
+$modbusOn = @(Get-NetTCPConnection -LocalPort $simPort -State Listen -ErrorAction SilentlyContinue)
 $needModbus = @($targets | Where-Object { $_.Name -match 'modbus' })
 
 Write-Host ''
@@ -167,9 +185,9 @@ Write-Host '================================================================'
 Write-Host " verify — примеров к прогону: $($targets.Count)"
 if ($needModbus.Count -gt 0) {
     if ($modbusOn.Count -gt 0) {
-        Write-Host ' Эмулятор Modbus: порт 504 слушает'
+        Write-Host " Эмулятор Modbus: порт $simPort слушает"
     } else {
-        Write-Host " ВНИМАНИЕ: эмулятор Modbus не запущен (порт 504 молчит)."
+        Write-Host " ВНИМАНИЕ: эмулятор Modbus не запущен (порт $simPort молчит)."
         Write-Host "   Примеры Modbus упадут: $($needModbus.Count). Запуск:"
         Write-Host '   tools\modbus-sim\modbus-sim.ps1 start'
     }
