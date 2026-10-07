@@ -26,10 +26,11 @@
 | OPC UA сервер | любой | только для задач OPC UA |
 
 Путь к интерпретатору CTL ищется через переменную `WCCOA_CTRL_EXE`, а
-если она не задана — в типовых местах установки в `Program Files`:
+если она не задана — в стандартной установке `C:\Sybcom\Kaskad\3.18`,
+затем в типовых местах в `Program Files`:
 
 ```powershell
-$env:WCCOA_CTRL_EXE = 'D:\WinCCOA\3.18\bin\WCCOActrl.exe'
+$env:WCCOA_CTRL_EXE = 'C:\Sybcom\Kaskad\3.18\bin\WCCOActrl.exe'
 ```
 
 ## Перенос

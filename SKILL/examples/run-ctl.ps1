@@ -30,7 +30,11 @@ param(
     [int]$Num = 0,          # номер менеджера, обязательно < 255
     [int]$WaitSeconds = 30,
     [switch]$LongRunning,
-    [switch]$RawOut          # отдать сырой stdout без печати (для verify.ps1)
+    [switch]$RawOut,         # отдать сырой stdout без печати (для verify.ps1)
+    # Каталог стандартной установки WinCC OA, проверяется вторым после
+    # переменной окружения. Если у вас другой путь - задайте WCCOA_CTRL_EXE
+    # или переопределите этот ключ, править код не нужно.
+    [string]$DefaultOaRoot = 'C:\Sybcom\Kaskad\3.18'
 )
 
 if ($Num -ge 255) {
@@ -109,14 +113,16 @@ try {
 
 # Где взять WCCOActrl.exe.
 #
-# Порядок: переменная WCCOA_CTRL_EXE, затем типовые места установки.
-# Жёсткого пути здесь нет намеренно - у другой машины он всё равно не
-# сработал бы, а сообщение об ошибке уводило бы в сторону.
+# Порядок: переменная WCCOA_CTRL_EXE, затем стандартная установка
+# C:\Sybcom\Kaskad\3.18, затем типовые места установки в Program Files.
+# Переменная важнее всего: если WinCC OA стоит не по этому пути, её
+# достаточно задать один раз, и скрипт работает без правок кода.
 $exe = $null
 
 if ($env:WCCOA_CTRL_EXE) { $exe = $env:WCCOA_CTRL_EXE }
 else {
     $candidates = New-Object System.Collections.Generic.List[string]
+    $candidates.Add((Join-Path $DefaultOaRoot 'bin\WCCOActrl.exe'))
     $roots = @($env:ProgramFiles, ${env:ProgramFiles(x86)}, $env:ProgramW6432)
     foreach ($r in $roots) {
         if (-not $r) { continue }
@@ -132,9 +138,11 @@ else {
 }
 
 if (-not $exe -or -not (Test-Path -LiteralPath $exe)) {
-    $hint = 'Интерпретатор WCCOActrl.exe не найден. Укажите его одним из способов:'
+    $hint = 'Интерпретатор WCCOActrl.exe не найден. Проверены: переменная WCCOA_CTRL_EXE, '
+    $hint += 'каталог ' + $DefaultOaRoot + ' и типовые места установки в Program Files.' + [char]10
+    $hint += 'Укажите его одним из способов:' + [char]10
     $hint += ' 1) переменная окружения:  $env:WCCOA_CTRL_EXE = ' + [char]39 + '<путь>\bin\WCCOActrl.exe' + [char]39 + [char]10
-    $hint += ' 2) если WinCC OA установлена не в Program Files - переменная окружения обязательна;' + [char]10
+    $hint += ' 2) ключ запуска:  -DefaultOaRoot <каталог установки>' + [char]10
     $hint += ' 3) проверьте путь: где лежит WCCOActrl.exe - там и должна указывать переменная.' + [char]10
     throw $hint
 }
