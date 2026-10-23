@@ -143,11 +143,18 @@ function checkContinuity() {
 // для большинства устройств совпадает, но для устройства с заполненными
 // входами это неверно. Теперь у каждого пространства своя секция карты
 // (`input`, `ireg`), а при её отсутствии - откат на прежнее поведение.
+//
+// У FC1 была та же ошибка, только хуже: ветки `coils` не было вовсе, и
+// чтение катушек уходило в holding, отдавая чужие значения с тех же адресов.
+// Заметно это было лишь до первой записи: записанная катушка лежит в
+// `written` и читается верно, а остальные продолжали врать. Защита -
+// selftest-coils.js.
 
 function spaceOf(dev, space) {
   if (!dev) return null;
   if (space === 'input' && dev.input)  return 'input';
   if (space === 'ireg'  && dev.ireg)   return 'ireg';
+  if (space === 'coils' && dev.coils)  return 'coils';
   if (space === 'input') return 'coils';
   return 'holding';
 }
