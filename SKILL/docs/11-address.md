@@ -349,7 +349,7 @@ GUI, а не обязательный дополнительный шаг.
 
 Точка данных `f1`, тип `for_test_OPCUA`, элемент `f_node`, настроенная в ParaMod
 вручную и работающая. Все значения ниже сняты скриптом
-[`exp_ref_address.ctl`](../examples/11-address/exp_ref_address.ctl).
+[`exp_ref_address.ctl`](../examples/11-address/exp/exp_ref_address.ctl).
 
 | Атрибут | Значение | Смысл |
 | --- | --- | --- |
