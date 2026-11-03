@@ -12,3 +12,6 @@ node_modules/
 # Служебное
 *.tmp
 Thumbs.db
+
+# Рабочие журналы планов (superpowers): это заметки прогона, а не исходники.
+.superpowers/
