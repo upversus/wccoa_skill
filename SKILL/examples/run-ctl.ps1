@@ -175,7 +175,8 @@ $p = Start-Process -FilePath $exe -ArgumentList $argList -WorkingDirectory $work
 
 if ($LongRunning) {
     Write-Host "Режим: долгий. Скрипт работает, пока его не остановят (PID $($p.Id))."
-    Write-Host "Лог в реальном времени: $errFile"
+    Write-Host "stdout (DebugN): $outFile"
+    Write-Host "stderr (служебное): $errFile"
     return
 }
 
