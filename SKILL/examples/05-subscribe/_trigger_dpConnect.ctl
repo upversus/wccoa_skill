@@ -1,41 +1,53 @@
-// _trigger_dpConnect.ctl - служебный скрипт к примеру 01_dpConnect.ctl.
+// _trigger_dpConnect.ctl - служебный скрипт к примерам 01_dpConnect.ctl
+// и 02_dpConnectUserData.ctl.
 //
 // НЕ ПРИМЕР. Имя начинается с "_", поэтому verify.ps1 его не прогоняет, а
 // docs/99-reference.md не считает в общем числе примеров.
 //
 // Зачем: подписка проверяется только внешним событием. Этот скрипт ставит
-// четыре значения в точку, на которую подписан 01_dpConnect.ctl, и завершается.
+// четыре значения в точку, на которую подписан пример, и завершается.
 //
 // Запуск (второе окно, пока подписчик жив):
 //   .\run-ctl.ps1 -Script .\05-subscribe\_trigger_dpConnect.ctl -Num 201
 //
 // ВАЖНО: пишем в _original.._value. dpSet() в _online.._value вернёт rc=0,
 // но значение не изменится, и подписка промолчит.
+//
+// Итог печатается в своём формате (НЕ "PASS= N  FAIL= M"), чтобы verify.ps1
+// не принял этот служебный файл за проверяемый пример.
 
 string DP = "dpdemo_sub";
+
+int nOk = 0;
+int nBad = 0;
 
 main()
 {
   DebugN("=== триггер подписки: четыре записи ===");
 
-  int rc;
-
-  rc = dpSet(DP + ".value:_original.._value", 22.3);
-  DebugN("  записано 22.3   rc=", rc);
+  write(22.3);
   delay(1);
-
-  rc = dpSet(DP + ".value:_original.._value", 47.5);
-  DebugN("  записано 47.5   rc=", rc);
+  write(47.5);
   delay(1);
-
-  rc = dpSet(DP + ".value:_original.._value", -5.25);
-  DebugN("  записано -5.25  rc=", rc);
+  write(-5.25);
   delay(1);
-
-  rc = dpSet(DP + ".value:_original.._value", 100.0);
-  DebugN("  записано 100.0  rc=", rc);
+  write(100.0);
 
   // Пауза в конце: dpSet() не блокирующий, и без неё последняя запись может
   // не уйти до завершения процесса.
   delay(1);
+
+  DebugN("--- записей ok=", nOk, "  bad=", nBad, " ---");
+  if (nBad > 0)
+  {
+    DebugN("  ЗАПИСЬ НЕ ПРОШЛА: проверьте, что подписчик запущен и точка ",
+           DP, " существует");
+  }
+}
+
+void write(float v)
+{
+  int rc = dpSet(DP + ".value:_original.._value", v);
+  DebugN("  записано ", v, "   rc=", rc);
+  if (rc == 0) { nOk++; } else { nBad++; }
 }

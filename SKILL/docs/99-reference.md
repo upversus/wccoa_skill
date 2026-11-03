@@ -3,21 +3,32 @@
 Все **86** функций категории *Datapoint Functions* из документации 3.21.6,
 сгруппированные по этапу жизненного цикла точки данных.
 
-**Примеров по этапам — 74.** Столько `.ctl` лежит в
-`examples/<этап>/`, без `examples/exp/` (38 экспериментальных) и
-без трёх служебных в корне (`_inventory.ctl`, `_lib.ctl`,
-`cleanup_stand.ctl`). Число не выдумывается вручную и пересчитывается так:
+**Примеров по этапам — 76.** Столько `.ctl` лежит в `examples/<этап>/`, без
+каталогов `examples/exp/` и `examples/11-address/exp/` (там эксперименты),
+без файлов с именем на `_` (`_lib.ctl`, `_inventory.ctl`,
+`_trigger_dpConnect.ctl`) и без утилит, лежащих прямо в `examples/`
+(`cleanup_stand.ctl`). Число не выдумывается вручную и пересчитывается так:
 
 ```powershell
 Get-ChildItem examples -Recurse -Filter *.ctl |
-    Group-Object { Split-Path $_.DirectoryName -Leaf }
+    Where-Object { $_.DirectoryName -notlike '*exp*' -and
+                   $_.Name -notlike '_*' -and
+                   $_.DirectoryName -ne (Join-Path $PWD examples) } |
+    Group-Object { Split-Path $_.DirectoryName -Leaf } |
+    Sort-Object Name
 ```
+
+Черновики `exp_*.ctl` внутри папок этапов (`00-scenario`, `11-address`) в счёт
+входят — они лежат наравне с примерами. Гейт `examples/verify.ps1` прогоняет
+меньше: 63, потому что дополнительно пропускает имена из списка `$exempt`.
 
 Прежние числа (54 обещанных, 52 написанных, 59 в разделе ниже) были
 оценкой плана, а не фактом, и разошлись между собой. Ориентироваться надо
 на список, а не на эти цифры.
-этап 06 (SQL, 10) — признаны избыточными, этап 10 (резервирование, 2) —
-непроверяемы без настроенного резервирования.
+
+Вне объёма остались: этап 04 (запись в PLC), 8 функций этапа 06 (SQL, 10) —
+признаны избыточными, этап 10 (резервирование, 2) — непроверяемы без
+настроенного резервирования.
 
 Колонки:
 
@@ -171,13 +182,14 @@ Get-ChildItem examples -Recurse -Filter *.ctl |
 
 ## 06. SQL-запросы — частично в объёме
 
-Все 10 функций этапа **не реализуются сейчас**. Справочное описание сохранено в
-[06-query.md](06-query.md), демонстрационные скрипты не написаны.
+2 функции из 10 реализованы и проверены: `dpQuery()` (`06-query/01_dpQuery.ctl`)
+и `checkQuery()` (`06-query/02_checkQuery.ctl`). Остальные 8 не реализуются —
+справочное описание сохранено в [06-query.md](06-query.md).
 
 | Функция | Сигнатура | Статус |
 | --- | --- | --- |
-| `dpQuery()` | `int (string query, dyn_dyn_anytype &tab)` | ⛔ не реализуется |
-| `checkQuery()` | `int (string aQuery)` | ⛔ не реализуется |
+| `dpQuery()` | `int (string query, dyn_dyn_anytype &tab)` | ✅ реализовано (`01_dpQuery.ctl`) |
+| `checkQuery()` | `int (string aQuery)` | ✅ реализовано (`02_checkQuery.ctl`) |
 | `dpQueryConnectAll()` | `int ([object,] work, bool wantsanswer, anytype userData, string query [, int blockingTime])` | ⛔ не реализуется |
 | `dpQueryConnectSingle()` | `int ([object,] work, bool wantsanswer, anytype userData, string query [, int blockingTime])` | ⛔ не реализуется |
 | `dpQueryDisconnect()` | `int ([object,] work, anytype userData)` | ⛔ не реализуется |
@@ -284,20 +296,25 @@ Get-ChildItem examples -Recurse -Filter *.ctl |
 
 ## Итог на текущий момент
 
-**Все 55 обещанных скриптов реализованы и проверены.** Гейт:
-`examples/verify.ps1 -All` → **57/57, сбоев 0** (55 примеров функций +
-сценарный прогон и уборка стенда).
+**Все обещанные скрипты по этапам реализованы и проверены.** Гейт:
+`examples/verify.ps1 -All` прогоняет 63 скрипта, сбоев нет.
 
-| Раздел | Обещано | Реализовано |
+| Раздел | Примеров | Реализовано |
 | --- | --- | --- |
+| `00-scenario` | 1 | 1 ✅ |
 | `01-create` | 12 | 12 ✅ |
 | `02-config` | 12 | 12 ✅ |
 | `03-read` | 13 | 13 ✅ |
+| `05-subscribe` | 2 | 2 ✅ |
 | `06-query` | 2 | 2 ✅ |
-| `07-copy` | 4 | 4 ✅ |
+| `07-copy` | 3 | 3 ✅ |
 | `09-delete` | 3 | 3 ✅ |
-| `11-address` | 9 | 9 ✅ |
-| **Итого** | **55** | **55** ✅ |
+| `11-address` | 22 | 22 ✅ |
+| **Итого** | **70** | **70** ✅ |
+
+Строка `Итого` считает примеры без черновиков `exp_*.ctl`, лежащих внутри папок
+этапов: 76 по правилу из начала файла минус 6 таких черновиков. Гейт проходит
+меньше — 63, за вычетом списка `$exempt` в `verify.ps1`.
 
 ### Семь исключённых функций
 
