@@ -8,8 +8,9 @@
 >
 > **Вне объёма (8 функций):** `dpQueryConnectAll`, `dpQueryConnectSingle`,
 > `dpQueryDisconnect`, `dpGetAllAliases`, `dpAliases`, `dpGetAllDescriptions`,
-> `dpGetAllComments`, `getAllDpAliases`. Подписки на запросы исключены вместе
-> с этапом `05-subscribe`; справочные описания остаются ниже.
+> `dpGetAllComments`, `getAllDpAliases`. Подписки на запросы исключены
+> отдельно; этап `05-subscribe` при этом реализован в части `dpConnect` и
+> `dpConnectUserData`. Справочные описания остаются ниже.
 >
 > Функции поиска и фильтрации — `dpNames()`, `dpTypeName()`, `dpGetAlias()`,
 > `dpAliasToName()`, `dpGetAllDescriptions()` — разобраны на других этапах

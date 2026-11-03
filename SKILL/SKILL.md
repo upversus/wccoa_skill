@@ -99,7 +99,8 @@ PowerShell, сначала перейди в каталог скилла.
 | Привязать адреса OPC UA | [playbooks/opcua-addressing.md](playbooks/opcua-addressing.md) | `11-address/22_address_opcua_live.ctl` |
 | Адрес настроен, а данных нет | [playbooks/diagnosing-silent-address.md](playbooks/diagnosing-silent-address.md) | — |
 | Прочитать значение, качество, время | [playbooks/reading-data.md](playbooks/reading-data.md) | `03-read/01_dpGet.ctl` |
-| Записать значение в устройство | `docs/04-write.md`, `docs/05-subscribe.md` | `11-address/10_address_modbus_write.ctl` |
+| Записать значение в устройство | `docs/04-write.md` | `11-address/10_address_modbus_write.ctl` |
+| Дождаться изменения значения | `docs/05-subscribe.md` | `05-subscribe/01_dpConnect.ctl` |
 | Создать или удалить точку и тип | `docs/01-create.md`, `docs/09-delete.md` | `01-create/`, `09-delete/` |
 | Приёмка на незнакомом устройстве | [playbooks/acceptance-test.md](playbooks/acceptance-test.md) | `11-address/25_acceptance_8bit.ctl` |
 
@@ -158,10 +159,9 @@ $env:WCCOA_CTRL_EXE = 'C:\Sybcom\Kaskad\3.18\bin\WCCOActrl.exe'
 
 ### Чего в скилле нет
 
-- **Примеров записи, подписки и тревог.** `docs/04-write.md`,
-  `docs/05-subscribe.md`, `docs/08-alerts.md` содержат только текст,
-  проверенных `.ctl` нет, каталог `examples/04-write/` пуст. Три раздела из
-  тринадцати не имеют примеров.
+- **Примеров записи и тревог.** `docs/04-write.md` и `docs/08-alerts.md`
+  содержат только текст, проверенных `.ctl` нет, каталог `examples/04-write/`
+  пуст. Два раздела из тринадцати не имеют примеров.
 - **Эмулятора OPC UA.** Рабочий стенд возможен только с реальным сервером.
   Для Modbus эмулятор есть, для OPC UA пришлось обойтись Kepware.
 - **Ответа про `VARIANT_ID` и `ELEMENT_ID` в адресе OPC UA.** В адресе стоит

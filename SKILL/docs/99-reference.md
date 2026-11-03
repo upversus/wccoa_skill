@@ -44,7 +44,7 @@ Get-ChildItem examples -Recurse -Filter *.ctl |
 | Метрика | Значение |
 | --- | --- |
 | Всего функций в справочнике | 86 |
-| **Реализовано и проверено в CTL 3.18** | **55** (функций, не скриптов) |
+| **Реализовано и проверено в CTL 3.18** | **57** (функций, не скриптов) |
 | Из них устаревших | 6 (`dpIsLegalName`, `dpNameCheck`, `dpSetComment`, `dpGetComment`, `dpGetAllComments`, `getAllDpAliases`) |
 | **Исключено из объёма** | **7** (см. ниже) |
 | Исключено как нереализуемое | 2 (`isReduDp`, `getReduDp`) — см. раздел 10 |
@@ -154,18 +154,20 @@ Get-ChildItem examples -Recurse -Filter *.ctl |
 | `dpCopyOriginal()` | `void (string src, string dst, int &error)` | нет | Переносит original-значения, в т.ч. между системами |
 | `dpWaitForValue()` | `int (dyn_string dpNamesWait, dyn_anytype conditions, dyn_string dpNamesReturn, dyn_anytype &returnValues, time timeout [, bool &timerExpired])` | да | Блокирующее ожидание выполнения условия |
 
-## 05. Подписки — ⛔ ВНЕ ОБЪЁМА РАБОТ
+## 05. Подписки — частично в объёме
 
-Эти функции **не реализуются сейчас** — признаны избыточными для функционала
-планируемого скила. Справочное описание сохранено в
-[05-subscribe.md](05-subscribe.md) — справочная заметка, скрипты не создаются по решению владельца.
+`dpConnect()` и `dpConnectUserData()` реализованы и проверены: примеры в
+[examples/05-subscribe/](../examples/05-subscribe/). `dpDisconnect()` и
+`dpDisconnectUserData()` на этом этапе не реализуются — сценарий смены подписки
+(сначала снять, затем подписаться на другие точки в том же скрипте) описан
+словами в [05-subscribe.md](05-subscribe.md).
 
 | Функция | Сигнатура | Статус |
 | --- | --- | --- |
-| `dpConnect()` | `int ([object,] work, [bool answer,] string dp1 [, …] \| dyn_string dp_list)` | ⛔ не реализуется |
-| `dpConnectUserData()` | `int ([object,] work, anytype userData [, bool answer,] string dpe1 [, …])` | ⛔ не реализуется |
-| `dpDisconnect()` | `int ([object,] work, string dp1 [, …])` | ⛔ не реализуется |
-| `dpDisconnectUserData()` | `int ([object,] work, anytype userData [, string dp1 [, …]])` | ⛔ не реализуется |
+| `dpConnect()` | `int ([object,] work, [bool answer,] string dp1 [, …] \| dyn_string dp_list)` | ✅ реализовано (`01_dpConnect.ctl`) |
+| `dpConnectUserData()` | `int ([object,] work, anytype userData [, bool answer,] string dpe1 [, …])` | ✅ реализовано (`02_dpConnectUserData.ctl`) |
+| `dpDisconnect()` | `int ([object,] work, string dp1 [, …])` | ⛔ не реализуется на этом этапе |
+| `dpDisconnectUserData()` | `int ([object,] work, anytype userData [, string dp1 [, …]])` | ⛔ не реализуется на этом этапе |
 
 ## 06. SQL-запросы — частично в объёме
 
@@ -235,7 +237,7 @@ Get-ChildItem examples -Recurse -Filter *.ctl |
 писать неверно. Штатная логика выбора узлов резервирования уже реализована в
 библиотеке `hosts.ctl` из `<wincc_oa_path>/scripts/libs/`.
 
-**Примеров по этапам — 74** (счёт в начале файла; `exp/` и служебные не входят). Вне объёма остались: `04-write`, `05-subscribe`, 8 функций `06-query`, 10 функций `08-alerts`, `dpGetAsynch`.
+**Примеров по этапам — 76** (счёт в начале файла; `exp/` и служебные не входят). Вне объёма остались: `04-write`, 8 функций `06-query`, 10 функций `08-alerts`, `dpGetAsynch`.
 
 ---
 
@@ -248,7 +250,8 @@ Get-ChildItem examples -Recurse -Filter *.ctl |
    первым**, иначе половина примеров не запустится.
 2. [01-create.md](01-create.md) → [02-config.md](02-config.md) → [03-read.md](03-read.md)
    — базовая тройка «создал → настроил → прочитал».
-3. ~~[05-subscribe.md](05-subscribe.md)~~ — ⛔ вне объёма.
+3. [05-subscribe.md](05-subscribe.md) — подписки: `dpConnect` и
+   `dpConnectUserData`, реакция на события.
 4. [06-query.md](06-query.md) — массовые выборки.
 5. [04-write.md](04-write.md), [07-copy.md](07-copy.md) — запись в PLC, клонирование.
 6. [08-alerts.md](08-alerts.md) — тревоги.
