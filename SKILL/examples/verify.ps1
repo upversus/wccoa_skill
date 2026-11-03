@@ -25,7 +25,10 @@ param(
     [string]$Script,
     [string]$Section,
     [switch]$All,
-    [string]$Project = '<проект стенда>',
+    # Как и в run-ctl.ps1, 'auto' - проект берётся из командной строки
+    # запущенного рантайма. Явное имя нужно, только если поднято несколько
+    # проектов одновременно.
+    [string]$Project = 'auto',
     [int]$NumBase = 90,         # номер менеджера; ОДИН на все запуски
     [int]$WaitSeconds = 120,
     [switch]$ShowOutput,        # печатать полный вывод каждого скрипта
