@@ -21,6 +21,10 @@
     печатает, сколько скриптов пропущено по этой причине. Когда окружение
     готово, добавьте -IncludeAddress.
 
+    Раздел 13-net в -All по умолчанию НЕ входит: его примеры требуют
+    запущенного HTTP-тестового сервера (tools/net-test-server/). Когда
+    сервер запущен, добавьте -IncludeNet.
+
     Код возврата: 0 — все оценённые примеры прошли, 1 — есть сбои или примеры
     без сводки. Скрипты в папках exp\ и файлы, имя которых начинается с "_",
     не запускаются: это черновики и служебные файлы.
@@ -33,6 +37,9 @@ param(
     # Включить 11-address в -All. По умолчанию раздел пропускается: он требует
     # настроенного окружения, и его готовит пользователь.
     [switch]$IncludeAddress,
+    # Включить 13-net в -All. По умолчанию раздел пропускается: его примеры
+    # требуют запущенного HTTP-тестового сервера (tools/net-test-server/).
+    [switch]$IncludeNet,
     # Как и в run-ctl.ps1, 'auto' - проект берётся из командной строки
     # запущенного рантайма. Явное имя нужно, только если поднято несколько
     # проектов одновременно.
@@ -189,6 +196,22 @@ if ($All -and -not $Script -and -not $Section -and -not $IncludeAddress) {
         Write-Host '  Включить в прогон: .\verify.ps1 -All -IncludeAddress'
     }
     $targets = @($targets | Where-Object { $_.DirectoryName -ne $addrDir })
+}
+
+# 13-net требует запущенного HTTP-тестового сервера (tools/net-test-server/).
+# Это готовит пользователь, поэтому в финальный гейт раздел по умолчанию не входит.
+if ($All -and -not $Script -and -not $Section -and -not $IncludeNet) {
+    $netDir = Join-Path $root '13-net'
+    $netAll = @($targets | Where-Object { $_.DirectoryName -eq $netDir })
+    if ($netAll.Count -gt 0) {
+        $netSkipped = $netAll.Count
+        Write-Host ''
+        Write-Host ("  ВНИМАНИЕ: раздел 13-net ИСКЛЮЧЁН из прогона: {0} скриптов." -f $netAll.Count)
+        Write-Host '  Причина: нужен запущенный HTTP-тестовый сервер (tools/net-test-server/net_test_server.py).'
+        Write-Host '  Запуск сервера: python tools/net-test-server/net_test_server.py'
+        Write-Host '  Включить в прогон: .\verify.ps1 -All -IncludeNet'
+    }
+    $targets = @($targets | Where-Object { $_.DirectoryName -ne $netDir })
 }
 
 if ($targets.Count -eq 0) {
