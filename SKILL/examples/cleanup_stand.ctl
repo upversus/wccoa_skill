@@ -31,6 +31,7 @@ dyn_string MY_TYPES = makeDynString(
     "opcChk_t",
     "opcFields_t",    // 11-address, поля Kind и Variant
     "pit_parse",      // точка word_to_bit
+    "period_probe_t", // 03-read, своя точка без архива в dpGetPeriod
     "probe_coil_t",   // подбор направления для coil
     "sub_t",          // 05-subscribe, подписка dpConnect
     "double",         // точка doubl2, проверка "типа double нет"

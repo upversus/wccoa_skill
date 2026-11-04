@@ -16,6 +16,11 @@
       .\verify.ps1 -Section 03-read
       .\verify.ps1 -All
 
+    Раздел 11-address в -All по умолчанию НЕ входит: его примеры требуют
+    подготовленного окружения (эмулятор Modbus, настроенный OPC UA). Гейт
+    печатает, сколько скриптов пропущено по этой причине. Когда окружение
+    готово, добавьте -IncludeAddress.
+
     Код возврата: 0 — все оценённые примеры прошли, 1 — есть сбои или примеры
     без сводки. Скрипты в папках exp\ и файлы, имя которых начинается с "_",
     не запускаются: это черновики и служебные файлы.
@@ -25,6 +30,9 @@ param(
     [string]$Script,
     [string]$Section,
     [switch]$All,
+    # Включить 11-address в -All. По умолчанию раздел пропускается: он требует
+    # настроенного окружения, и его готовит пользователь.
+    [switch]$IncludeAddress,
     # Как и в run-ctl.ps1, 'auto' - проект берётся из командной строки
     # запущенного рантайма. Явное имя нужно, только если поднято несколько
     # проектов одновременно.
@@ -109,6 +117,7 @@ function Get-Summary {
 # Отбор скриптов к прогону
 # ---------------------------------------------------------------------------
 $targets = @()
+$addrSkipped = 0
 
 if ($Script) {
     $targets = @(Get-Item -LiteralPath $Script)
@@ -161,6 +170,25 @@ $targets = @($targets | Where-Object {
 })
 if ($before -ne $targets.Count) {
     Write-Host "Пропущено служебных, черновиков и утилит без самопроверки: $($before - $targets.Count)"
+}
+
+# 11-address требует подготовленного окружения: эмулятор Modbus, настроенный
+# OPC UA, карта адресов. Это готовит пользователь, поэтому в финальный гейт
+# раздел по умолчанию не входит - но об этом всегда сообщается.
+# Исключаем ПОСЛЕ отсева черновиков, иначе в счётчик попадут exp_*.ctl,
+# которые всё равно не запускались бы, и число разойдётся с документацией.
+if ($All -and -not $Script -and -not $Section -and -not $IncludeAddress) {
+    $addrDir = Join-Path $root '11-address'
+    $addrAll = @($targets | Where-Object { $_.DirectoryName -eq $addrDir })
+    if ($addrAll.Count -gt 0) {
+        $addrSkipped = $addrAll.Count
+        Write-Host ''
+        Write-Host ("  ВНИМАНИЕ: раздел 11-address ИСКЛЮЧЁН из прогона: {0} скриптов." -f $addrAll.Count)
+        Write-Host '  Причина: нужен подготовленный стенд (эмулятор Modbus, OPC UA, карта адресов).'
+        Write-Host '  Этот раздел проверяет пользователь на своём окружении.'
+        Write-Host '  Включить в прогон: .\verify.ps1 -All -IncludeAddress'
+    }
+    $targets = @($targets | Where-Object { $_.DirectoryName -ne $addrDir })
 }
 
 if ($targets.Count -eq 0) {
@@ -297,6 +325,9 @@ Write-Host ("  без счётчика:      $nocount")
 Write-Host ("  без сводки:        $nosum")
 Write-Host ("  пропущено:         $skipped")
 Write-Host ("  всего:             $($rows.Count)")
+if ($addrSkipped -gt 0) {
+    Write-Host ("  исключено (11-address, нужен стенд): $addrSkipped скриптов")
+}
 
 if ($bad -gt 0 -or $nosum -gt 0 -or $skipped -gt 0) {
     Write-Host ''

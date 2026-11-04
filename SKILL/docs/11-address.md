@@ -10,6 +10,11 @@
 *Reference Tables → `_address` (Peripheral address)*, документация 3.21.6;
 плюс пример из опыта эксплуатации. Все константы проверены на CTL 3.18.
 
+> **Раздел не входит в `examples/verify.ps1 -All`.** Его примеры требуют
+> подготовленного окружения: эмулятор Modbus, настроенный OPC UA, карта
+> адресов. Готовит его пользователь; запуск — `verify.ps1 -Section 11-address`
+> или `verify.ps1 -All -IncludeAddress`.
+
 ---
 
 ## 1. Правило номер один: конфиги пишем только через `dpSetTimedWait`

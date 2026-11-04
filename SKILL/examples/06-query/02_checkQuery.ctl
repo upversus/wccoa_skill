@@ -16,10 +16,11 @@
 //     checkQuery("SELEKT garbage")   ->  1
 //     checkQuery("SELECT")           ->  1
 //
-// При этом dpQuery() на том же мусоре возвращает -1. То есть у двух функций
-// РАЗНЫЕ соглашения об ошибке, и код вида "if (checkQuery(q) != 0) отказ" будет
-// работать, а код "if (checkQuery(q) == -1) отказ" - нет. Проверять надо на
-// "не равно нулю".
+// При этом dpQuery() на том же мусоре ведёт себя иначе: возвращает 0 (!),
+// таблица пуста, а описание ошибки лежит в getLastError() — и читается
+// оттуда только ОДИН раз. То есть у двух функций разные соглашения:
+// checkQuery -> 1, dpQuery -> 0 + lastError. Проверять checkQuery надо на
+// "не равно нулю", а результат dpQuery — по lastError.
 //
 // Зачем это делать отдельно: если запрос строится из пользовательского ввода
 // или склейкой строк, дешевле спросить checkQuery(), чем выполнять dpQuery()
@@ -30,6 +31,8 @@
 // несуществующей точке возвращает rc = 0 и пустую таблицу, а не ошибку.
 //
 // Проверено: CTL 3.18, проект <проект стенда>.
+//
+// Ожидаемая сводка: --- PASS= 14  FAIL= 0 ---
 
 int dpdPass = 0;
 int dpdFail = 0;
@@ -75,10 +78,17 @@ main()
   DebugN("       TIMERANGE(\"<с\",\"по\",1,0)");
   DebugN("       LAST 10");
 
+  // Интервал берём скользящий: жёсткая дата устаревает и делает пример
+  // невоспроизводимым. checkQuery() не выполняет запрос, но синтаксис должен
+  // быть таким же, как в рабочем коде.
+  time tNow  = getCurrentTime();
+  string tStop  = formatTime("%Y.%m.%d %H:%M:%S", tNow);
+  string tStart = formatTime("%Y.%m.%d %H:%M:%S", tNow - 3600);
+
   string histQuery =
         "SELECT '_original.._value' "
       + "FROM 'ExampleDP_Arg1.' "
-      + "TIMERANGE(\"2026.10.04 13:34:18\",\"2026.10.04 21:34:31\",1,0) "
+      + "TIMERANGE(\"" + tStart + "\",\"" + tStop + "\",1,0) "
       + "LAST 10";
 
   int rHist = checkQuery(histQuery);
@@ -88,7 +98,8 @@ main()
 
   // Синтаксис TIMERANGE легко испортить: забыть закрывающую точку в FROM
   // или убрать запятые. Проверяем, что такие варианты отвергаются.
-  string badRange = "SELECT '_original.._value' FROM 'ExampleDP_Arg1' TIMERANGE(\"2026.10.04 13:34:18\",\"2026.10.04 21:34:31\",1,0)";
+  string badRange = "SELECT '_original.._value' FROM 'ExampleDP_Arg1' TIMERANGE(\""
+                  + tStart + "\",\"" + tStop + "\",1,0)";
   int rBadRange = checkQuery(badRange);
   DebugN("  без закрывающей точки в FROM   rc=", rBadRange);
   DebugN("    (внимание: этот вариант может быть признан верным - это не ошибка");
@@ -139,9 +150,12 @@ main()
   dyn_dyn_anytype tabBad;
   int rqBad  = checkQuery(bad1);
   int rexBad = dpQuery(bad1, tabBad);
-  DebugN("  checkQuery rc=", rqBad, "   dpQuery rc=", rexBad);
-  dpdCheck((rqBad != 0) && (rexBad == -1), "оба отвергают мусорный запрос, но разными кодами",
-           "checkQuery=" + rqBad + "  dpQuery=" + rexBad);
+  dyn_errClass errBad = getLastError();
+  DebugN("  checkQuery rc=", rqBad, "   dpQuery rc=", rexBad,
+         "   lastError=", dynlen(errBad), "   строк=", dynlen(tabBad));
+  dpdCheck((rqBad != 0) && (rexBad == 0) && (dynlen(tabBad) == 0) && (dynlen(errBad) > 0),
+           "checkQuery отвергает, dpQuery — rc=0 и lastError",
+           "check=" + rqBad + " dpQuery=" + rexBad + " err=" + dynlen(errBad));
 
   // ---------------------------------------------------------------------
   // 5. Уборка
