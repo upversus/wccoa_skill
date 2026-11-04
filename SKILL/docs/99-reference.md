@@ -252,6 +252,25 @@ Get-ChildItem examples -Recurse -Filter *.ctl |
 писать неверно. Штатная логика выбора узлов резервирования уже реализована в
 библиотеке `hosts.ctl` из `<wincc_oa_path>/scripts/libs/`.
 
+## 13. Клиентские HTTP-функции net* — [13-http.md](13-http.md)
+
+> ⛔ **Не входит в 86 функций работы с точками данных.** `net*` — отдельная
+> категория клиентских HTTP-функций CTL, они не являются функциями работы с
+> точками данных и не учитываются в статистике выше.
+
+| Функция | Сигнатура | Blocking | Назначение | Статус |
+| --- | --- | --- | --- | --- |
+| `netGet()` | `int (string url, mapping\|string\|blob &result [, mapping options])` | да | HTTP GET, ответ в `result` | ✅ реализовано, проверено |
+| `netPost()` | `int (string url, mapping\|string\|blob data [, mapping\|string\|blob &result])` | да | HTTP POST с данными | ✅ реализовано, проверено |
+| `netPut()` | `int (string url, mapping\|string\|blob data [, mapping\|string\|blob &result])` | да | HTTP PUT (замена ресурса) | ✅ реализовано, проверено |
+| `netDelete()` | `int (string url, mapping\|string\|blob &result [, mapping options])` | да | HTTP DELETE ресурса | ✅ реализовано, проверено |
+| `netHead()` | `int (string url, mapping &result [, mapping options])` | да | HTTP HEAD, только заголовки | ✅ реализовано, проверено |
+
+Все пять функций компилируются и отрабатывают на CTL 3.18. Подробное описание,
+семантику возвратов (`rc == 0` ≠ HTTP `2xx`, `mapping` vs `string`/`blob`,
+`ignoreSslErrors`, `target`, FTP через `ftpDownload()`/`ftpUpload()`) см. в
+`13-http.md`.
+
 **Примеров по этапам — 76** (счёт в начале файла; `exp/` и служебные не входят). Вне объёма остались: `04-write`, 8 функций `06-query`, 10 функций `08-alerts`, `dpGetAsynch`.
 
 ---

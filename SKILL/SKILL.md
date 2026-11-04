@@ -122,6 +122,7 @@ PowerShell, сначала перейди в каталог скилла.
 | Привязать адреса OPC UA | [playbooks/opcua-addressing.md](playbooks/opcua-addressing.md) | `11-address/22_address_opcua_live.ctl` |
 | Адрес настроен, а данных нет | [playbooks/diagnosing-silent-address.md](playbooks/diagnosing-silent-address.md) | — |
 | Прочитать значение, качество, время | [playbooks/reading-data.md](playbooks/reading-data.md) | `03-read/01_dpGet.ctl` |
+| Выполнить HTTP-запрос из CTL (GET/POST/PUT/DELETE/HEAD) | `docs/13-http.md` | `docs/13-http.md` |
 | Записать значение в устройство | `docs/04-write.md` | `11-address/10_address_modbus_write.ctl` |
 | Дождаться изменения значения | `docs/05-subscribe.md` | `05-subscribe/01_dpConnect.ctl` |
 | Создать или удалить точку и тип | `docs/01-create.md`, `docs/09-delete.md` | `01-create/`, `09-delete/` |
@@ -252,6 +253,7 @@ docs/                    справочник по операциям
                            запросы, клонирование, тревоги, удаление
   11-address.md            периферийный адрес, полный рецепт, таблица кодов
   12-map-to-ctl.md         от референса пользователя до работающей точки
+  13-http.md               клиентские HTTP-функции net*
 examples/                проверенные примеры CTL
   00-scenario/             полный цикл и разведки по структуре типа
   01-create/ .. 09-delete/ по операциям
