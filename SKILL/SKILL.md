@@ -123,7 +123,7 @@ PowerShell, сначала перейди в каталог скилла.
 | Адрес настроен, а данных нет | [playbooks/diagnosing-silent-address.md](playbooks/diagnosing-silent-address.md) | — |
 | Прочитать значение, качество, время | [playbooks/reading-data.md](playbooks/reading-data.md) | `03-read/01_dpGet.ctl` |
 | Выполнить HTTP-запрос из CTL (GET/POST/PUT/DELETE/HEAD) | `docs/13-http.md` | `docs/13-http.md` |
-| Собрать/разобрать JSON, работать с `mapping` | `docs/14-legacyFoo.md` | `14-legacyFoo/04_json_pipeline.ctl` |
+| Собрать/разобрать JSON, работать с `mapping` и битами `bit32`/`bit64` | `docs/14-legacyFoo.md` | `14-legacyFoo/05_bits.ctl` |
 | Записать значение в устройство | `docs/04-write.md` | `11-address/10_address_modbus_write.ctl` |
 | Дождаться изменения значения | `docs/05-subscribe.md` | `05-subscribe/01_dpConnect.ctl` |
 | Создать или удалить точку и тип | `docs/01-create.md`, `docs/09-delete.md` | `01-create/`, `09-delete/` |

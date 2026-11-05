@@ -1,20 +1,20 @@
 # 14. JSON и mapping — legacyFoo
 
 Раздел назван `legacyFoo` по договорённости: сюда складываются функции CTL,
-не относящиеся к точкам данных, и раздел будет пополняться. Сейчас в нём две
-темы: JSON в памяти (`jsonEncode`, `jsonDecode`) и ассоциативные массивы
-`mapping`.
+не относящиеся к точкам данных, и раздел будет пополняться. Сейчас в нём три темы: JSON в памяти (`jsonEncode`, `jsonDecode`),
+ассоциативные массивы `mapping` и работа с битами `bit32`/`bit64`.
 
 > ⛔ **JSON ≠ HTTP.** `jsonEncode()` и `jsonDecode()` работают только с памятью
 > CTL-скрипта и **не делают сетевых запросов**. HTTP — это `netGet()`,
 > `netPost()` и остальные `net*` из [13-http.md](13-http.md). Конвейер
-> «собрать JSON → отправить → разобрать ответ» описан в разделе 6.
+> «собрать JSON → отправить → разобрать ответ» описан в разделе 7.
 
 Источники (документация 3.21.6, проверка — CTL 3.18):
 
 * [Mapping Functions](https://www.winccoa.com/documentation/WinCCOA/latest/de_AT/Control_Grundlagen/mapping_functions.html)
 * [jsonEncode()](https://www.winccoa.com/documentation/WinCCOA/latest/de_AT/ControlE_R/jsonEncode.html)
 * [jsonDecode()](https://www.winccoa.com/documentation/WinCCOA/latest/de_AT/ControlE_R/jsonDecode.html)
+* [32/64 bit Functions](https://www.winccoa.com/documentation/WinCCOA/latest/de_AT/Control_Grundlagen/Control_Grundlagen-28.html)
 
 Проверено запуском: CTL 3.18, проект `<проект стенда>`. Всё, что помечено
 **«измерено»**, проверено на стенде и может расходиться с документацией.
@@ -230,7 +230,44 @@ DebugN(mappinglen(m));           // 0
 
 Передаётся по ссылке. Для пустого `mapping` тоже возвращает `0` (**измерено**).
 
-## 4. Смешанные ключи
+## 4. Биты `bit32`/`bit64`
+
+CTL 3.18 поддерживает типы `bit32` и `bit64` для побитовых операций.\nМладший бит — позиция **0**, позиции считаются от 0 до 31 (`bit32`) или 0 до 63 (`bit64`).
+
+| Функция | Сигнатура | Назначение |
+| --- | --- | --- |
+| `getBit()` | `int (bit32|bit64 aBitVar, int position)` | вернуть значение бита: `0` или `1` |
+| `setBit()` | `int (bit32|bit64 &aBitVar, int position, bool value)` | установить бит в `0`/`1` (`true`/`false`) |
+| `checkPattern()` | `int (bit32|bit64 aBitVar, string pattern)` | сравнить переменную со шаблоном |
+| `setPattern()` | `int (bit32|bit64 &aBitVar, string pattern)` | присвоить переменной шаблон |
+
+`setBit`/`setPattern` передают переменную по ссылке (`&`) и меняют
+её напрямую. Возвращают `0` при успехе, `-1` при ошибке (по документации).
+`getBit` возвращает `0` или `1`, а при ошибке — `-1`.
+
+```c
+bit32 b = 13;              // 1101b: биты 0, 2, 3 = 1, бит 1 = 0
+DebugN(getBit(b, 1));      // 0
+setBit(b, 1, true);        // b станет 15 (1111b)
+DebugN(checkPattern(b, "1111")); // 1
+setPattern(b, "xx0x");     // бит 1 сброшен → b снова 13
+```
+
+Шаблон `pattern` — строка длиной 1–64 символа из `0`, `1` и прочих символов
+(например `x`, которые игнорируются). **Измерено:** строка читается **справа
+налево** — крайний правый символ соответствует биту 0.
+
+### Измеренные оговорки 3.18
+
+| Оговорка | Поведение 3.18 |
+| --- | --- |
+| `getBit()` за границей (позиция ≥ 32 для `bit32`) | возвращает `0`, а не `-1` как в документации |
+| `setBit()` за границей | возвращает `0`, а не `-1` |
+| позиция бита | с 0, младший бит |
+| шаблон `checkPattern`/`setPattern` | читается справа налево, правый символ — бит 0 |
+| символы, кроме `0`/`1`, в шаблоне | игнорируются, не считаются ошибкой |
+
+## 5. Смешанные ключи
 
 ```c
 mapping m;
@@ -245,7 +282,7 @@ DebugN(m["s"], m[1], m[2.5]);
 `jsonEncode()` такой `mapping` закодирует как `{}` — JSON требует строковых
 ключей.
 
-## 5. Порядок и позиционный доступ
+## 6. Порядок и позиционный доступ
 
 Порядок в `mapping` не гарантирован. `mappingKeys()`, `mappingGetKey()` и
 `mappingGetValue()` используют один и тот же внутренний порядок, поэтому
@@ -253,7 +290,7 @@ DebugN(m["s"], m[1], m[2.5]);
 не обязаны совпадать с порядком вставки. Не полагайтесь на порядок в
 протоколах и сравнениях — проверяйте ключи через `mappingHasKey()`.
 
-## 6. Типовой конвейер JSON + `net*`
+## 7. Типовой конвейер JSON + `net*`
 
 ```c
 mapping data = makeMapping("name", "test", "value", 42);
@@ -276,7 +313,7 @@ if (rc == 0)
 сеть не используют: они проверяют только сборку, кодирование, разбор и
 проверку структуры.
 
-## 7. Измеренные оговорки CTL 3.18 — коротко
+## 8. Измеренные оговорки CTL 3.18 — коротко
 
 | Оговорка | Поведение 3.18 |
 | --- | --- |
@@ -296,7 +333,7 @@ if (rc == 0)
 | `jsonDecode(atime-объекта)` | `mapping`, не `atime` |
 | ошибка `jsonDecode()` | не `-1`; проверяйте `dynlen(getLastError())` |
 
-## 8. Примеры
+## 9. Примеры
 
 | Файл | Что проверяет |
 | --- | --- |
@@ -304,6 +341,7 @@ if (rc == 0)
 | [`02_jsonDecode.ctl`](../examples/14-legacyFoo/02_jsonDecode.ctl) | объект, массив, вложенность, ошибки синтаксиса и BOM, скалярная оговорка, `atime` |
 | [`03_mapping.ctl`](../examples/14-legacyFoo/03_mapping.ctl) | `makeMapping`, присваивание, `mappingHasKey`, `mappingKeys`, `mappinglen`, позиционный доступ, `mappingRemove`, `mappingClear`, смешанные ключи |
 | [`04_json_pipeline.ctl`](../examples/14-legacyFoo/04_json_pipeline.ctl) | сборка `mapping` → `jsonEncode` → `jsonDecode` → проверка структуры без сети |
+| [`05_bits.ctl`](../examples/14-legacyFoo/05_bits.ctl) | `getBit`, `setBit`, `checkPattern`, `setPattern` на `bit32`, границы позиций, шаблоны |
 
 Запуск раздела:
 
