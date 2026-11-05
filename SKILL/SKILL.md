@@ -110,7 +110,7 @@ PowerShell, сначала перейди в каталог скилла.
    поиск по `docs/` и шапкам `*.ctl`. Если факт противоречит им — правь и
    проверяй их тоже.
 5. **Не подменяй одно другим** в отчёте: «раздел 06-query, 2/2» — это не
-   «полный гейт 47/47».
+   «полный гейт».
 
 Раздел `11-address` в `-All` не входит — см. ниже, в «Инструментах».
 
@@ -123,6 +123,7 @@ PowerShell, сначала перейди в каталог скилла.
 | Адрес настроен, а данных нет | [playbooks/diagnosing-silent-address.md](playbooks/diagnosing-silent-address.md) | — |
 | Прочитать значение, качество, время | [playbooks/reading-data.md](playbooks/reading-data.md) | `03-read/01_dpGet.ctl` |
 | Выполнить HTTP-запрос из CTL (GET/POST/PUT/DELETE/HEAD) | `docs/13-http.md` | `docs/13-http.md` |
+| Собрать/разобрать JSON, работать с `mapping` | `docs/14-legacyFoo.md` | `14-legacyFoo/04_json_pipeline.ctl` |
 | Записать значение в устройство | `docs/04-write.md` | `11-address/10_address_modbus_write.ctl` |
 | Дождаться изменения значения | `docs/05-subscribe.md` | `05-subscribe/01_dpConnect.ctl` |
 | Создать или удалить точку и тип | `docs/01-create.md`, `docs/09-delete.md` | `01-create/`, `09-delete/` |
@@ -254,6 +255,7 @@ docs/                    справочник по операциям
   11-address.md            периферийный адрес, полный рецепт, таблица кодов
   12-map-to-ctl.md         от референса пользователя до работающей точки
   13-http.md               клиентские HTTP-функции net*
+  14-legacyFoo.md          JSON в памяти и mapping (legacyFoo)
 examples/                проверенные примеры CTL
   00-scenario/             полный цикл и разведки по структуре типа
   01-create/ .. 09-delete/ по операциям

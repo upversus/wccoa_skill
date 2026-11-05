@@ -218,3 +218,9 @@ int netHead(string url, mapping &result [, mapping options]);
 
 Проверка ключей в `mapping` делайте через `mappingHasKey(m, "ключ")` — метод
 `.hasKey()` в CTL 3.18 не существует.
+
+## См. также
+
+Сборка и разбор JSON в памяти CTL (`jsonEncode`, `jsonDecode`, `mapping`) —
+[14-legacyFoo.md](14-legacyFoo.md). Типовой конвейер: `mapping` → `jsonEncode`
+→ `netPost` → `netGet` → `jsonDecode` → `mappingHasKey`.
