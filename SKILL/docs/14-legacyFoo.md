@@ -342,6 +342,13 @@ int httpDisconnect(string resourceName);
 `Function not defined`; повторный `httpDisconnect()` — `-1`, `WARNING 76`
 `Resource not connected`. Шаблон `/api/*` вызывается для `/api/thing`.
 
+**Измерено:** путь сравнивается с именем ресурса **буквально**, без нормализации.
+`//api/dp`, `/api/dp/`, `/API/DP`, `/api/dp/extra` и `/api/../api/dp` не совпадают
+с `/api/dp`: отвечает встроенный обработчик — `404`, `Content-Type: text/html`,
+тело `<html>…The requested resource was not found…`, callback не вызывается.
+Поэтому «двойной слэш» в адресе выглядит как отсутствующий ресурс, а не как
+ошибка в параметрах; параметры запроса при этом вообще не разбираются.
+
 Callback получает до семи аргументов:
 
 ```c
@@ -422,6 +429,10 @@ string cb3()
 `rc = -1`, но тело и заголовки в `mapping` доступны. Сервер сам добавляет
 `Cache-Control: no-cache, private, must-revalidate`, `X-XSS-Protection`,
 `X-Frame-Options`, `X-Content-Type-Options`.
+
+**Измерено:** ответ обработчика, назначенного через `httpSetMethodHandler()`,
+приходит с `Content-Type: text/html` — типа для него не задать: `contentType`
+есть только у `httpConnect()`. Тело при этом любое, включая JSON.
 
 ### Настройки и вспомогательные функции
 
