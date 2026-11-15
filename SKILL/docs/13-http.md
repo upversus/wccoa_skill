@@ -194,7 +194,8 @@ int netHead(string url, mapping &result [, mapping options]);
    `netDelete`/`netHead`) или в `data` (для `netPost`/`netPut`).
 5. **`target`.** Путь, куда сохранить **ответ** сервера. `net*()` не читают файл по
    `target`.
-6. **Смежные функции.** Серверная сторона — `httpServer()` / `httpConnect()`; FTP —
+6. **Смежные функции.** Серверная сторона — `httpServer()` / `httpConnect()`
+   ([14-legacyFoo.md](14-legacyFoo.md), раздел 5); FTP —
    `ftpDownload()` / `ftpUpload()`.
 
 ## Проверено на стенде CTL 3.18

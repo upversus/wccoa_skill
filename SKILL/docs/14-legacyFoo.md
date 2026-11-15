@@ -1,13 +1,15 @@
-# 14. JSON и mapping — legacyFoo
+# 14. JSON, mapping, биты и HTTP-сервер — legacyFoo
 
 Раздел назван `legacyFoo` по договорённости: сюда складываются функции CTL,
-не относящиеся к точкам данных, и раздел будет пополняться. Сейчас в нём три темы: JSON в памяти (`jsonEncode`, `jsonDecode`),
-ассоциативные массивы `mapping` и работа с битами `bit32`/`bit64`.
+не относящиеся к точкам данных, и раздел будет пополняться. Сейчас в нём
+четыре темы: JSON в памяти (`jsonEncode`, `jsonDecode`), ассоциативные массивы
+`mapping`, работа с битами `bit32`/`bit64` и HTTP-сервер (`httpServer()` и
+семейство `http*`).
 
 > ⛔ **JSON ≠ HTTP.** `jsonEncode()` и `jsonDecode()` работают только с памятью
 > CTL-скрипта и **не делают сетевых запросов**. HTTP — это `netGet()`,
 > `netPost()` и остальные `net*` из [13-http.md](13-http.md). Конвейер
-> «собрать JSON → отправить → разобрать ответ» описан в разделе 7.
+> «собрать JSON → отправить → разобрать ответ» описан в разделе 8.
 
 Источники (документация 3.21.6, проверка — CTL 3.18):
 
@@ -15,6 +17,9 @@
 * [jsonEncode()](https://www.winccoa.com/documentation/WinCCOA/latest/de_AT/ControlE_R/jsonEncode.html)
 * [jsonDecode()](https://www.winccoa.com/documentation/WinCCOA/latest/de_AT/ControlE_R/jsonDecode.html)
 * [32/64 bit Functions](https://www.winccoa.com/documentation/WinCCOA/latest/de_AT/Control_Grundlagen/Control_Grundlagen-28.html)
+* [httpServer()](https://www.winccoa.com/documentation/WinCCOA/latest/en_US/ControlE_R/httpServer.html)
+* [httpConnect()](https://www.winccoa.com/documentation/WinCCOA/latest/en_US/ControlE_R/httpConnect.html)
+* [HTTP Functions](https://www.winccoa.com/documentation/WinCCOA/latest/de_AT/Control_Grundlagen/http_functions.html)
 
 Проверено запуском: CTL 3.18, проект `<проект стенда>`. Всё, что помечено
 **«измерено»**, проверено на стенде и может расходиться с документацией.
@@ -232,7 +237,8 @@ DebugN(mappinglen(m));           // 0
 
 ## 4. Биты `bit32`/`bit64`
 
-CTL 3.18 поддерживает типы `bit32` и `bit64` для побитовых операций.\nМладший бит — позиция **0**, позиции считаются от 0 до 31 (`bit32`) или 0 до 63 (`bit64`).
+CTL 3.18 поддерживает типы `bit32` и `bit64` для побитовых операций.
+Младший бит — позиция **0**, позиции считаются от 0 до 31 (`bit32`) или 0 до 63 (`bit64`).
 
 | Функция | Сигнатура | Назначение |
 | --- | --- | --- |
@@ -267,7 +273,204 @@ setPattern(b, "xx0x");     // бит 1 сброшен → b снова 13
 | шаблон `checkPattern`/`setPattern` | читается справа налево, правый символ — бит 0 |
 | символы, кроме `0`/`1`, в шаблоне | игнорируются, не считаются ошибкой |
 
-## 5. Смешанные ключи
+## 5. HTTP-сервер: `httpServer()` и семейство `http*`
+
+`httpServer()` поднимает HTTP-сервер внутри CTRL-менеджера. Это **серверная**
+сторона: входящий запрос принимает функция, зарегистрированная через
+`httpConnect()`. Клиентская сторона — `netGet()`, `netPost()` и остальные
+`net*` из [13-http.md](13-http.md); ими же удобно проверять свой сервер
+loopback-запросами.
+
+> ⚠️ **Сервер живёт в менеджере.** Документация предупреждает: обмен с
+> клиентом может блокировать систему, поэтому HTTP-сервер лучше запускать в
+> отдельном CTRL-менеджере. На стенде loopback-запросы из того же скрипта
+> работают (измерено), но предупреждение это не отменяет.
+
+### `httpServer()`
+
+```c
+int httpServer([bool authRequired = true | string authMethod | dyn_string authMethods
+                [, unsigned portNr = 80 [, unsigned securePortNr = 443]]]);
+```
+
+| Параметр | Смысл |
+| --- | --- |
+| `authRequired` / `authMethod` / `authMethods` | нужна ли аутентификация и какая: `"Basic"`, `"Basic realm=myRealm"`, `"Negotiate"`, `"NTLM"`. Задаётся только один из трёх вариантов |
+| `portNr` | HTTP-порт, по умолчанию 80; `0` — HTTP не открывать, только HTTPS |
+| `securePortNr` | HTTPS-порт, по умолчанию 443; `0` — HTTPS не использовать |
+
+Возврат: `0` — сервер установлен, `-1` — ошибка. **Один сервер на менеджер.**
+
+```c
+#uses "CtrlHTTP"
+
+int rc = httpServer(false, 18081, 0);   // без аутентификации, HTTP 18081, без HTTPS
+if (rc != 0)
+  DebugN("httpServer:", getLastError());
+```
+
+`#uses "CtrlHTTP"` подключает плагин `CtrlHTTP.dll`; примеры раздела используют
+его, как и документация.
+
+**Измерено в 3.18:**
+
+| Что | Поведение |
+| --- | --- |
+| повторный `httpServer()` в том же менеджере | `-1`, `WARNING 54`, текст `httpServer already installed`; порт уже не важен |
+| занятый порт | `-1`; `getLastError()` **пуст**, в журнале `SEVERE`: `The Port <N> could not be opened.` |
+| повторная попытка на свободном порту после занятого | `0`, сервер поднимается |
+| завершение менеджера | после `main()` процесс **не завершается**, пока сервер установлен; нужен `exit(0)` |
+| порт по умолчанию 80 | может быть занят другим веб-сервером; на стенде берите высокий порт (под Linux порты < 1024 требуют root) |
+
+Пример с fallback по портам — в `06_httpServer.ctl`.
+
+### `httpConnect()` и `httpDisconnect()`
+
+```c
+int httpConnect(string|function_ptr callBackFunc, string resourceName
+                [, string contentType = "text/html"]);
+int httpDisconnect(string resourceName);
+```
+
+`httpConnect()` регистрирует CTRL-функцию как веб-ресурс. Ресурс можно задать
+точным именем (`/echo`) или шаблоном (`/api/*`): сначала проверяется точное
+совпадение, затем `patternMatch()`. `contentType` по умолчанию `text/html`.
+`httpDisconnect()` снимает регистрацию.
+
+**Измерено:** повторная регистрация того же ресурса — `-1`, `WARNING 76`
+`Resource already connected`; несуществующий callback — `-1`, `WARNING 72`
+`Function not defined`; повторный `httpDisconnect()` — `-1`, `WARNING 76`
+`Resource not connected`. Шаблон `/api/*` вызывается для `/api/thing`.
+
+Callback получает до семи аргументов:
+
+```c
+string cb(dyn_string names, dyn_string values, string user, string ip,
+          dyn_string headerNames, dyn_string headerValues, int idx)
+```
+
+* `names` / `values` — параметры query-строки (`GET`) или поля формы
+  (`POST application/x-www-form-urlencoded`);
+* `user` — авторизованный пользователь или `""`; `ip` — адрес клиента
+  (на стенде `::ffff:127.0.0.1`);
+* `headerNames` / `headerValues` — заголовки запроса;
+* `idx` — номер соединения, его передают в `httpGet*()`.
+
+Все аргументы необязательны: `string cb()` тоже работает (**измерено**).
+Для `POST` с типом `text/*` первым аргументом идёт `string content`, для
+остальных типов — `blob content` (по документации).
+
+### Данные запроса
+
+Все функции принимают `idx` из callback и работают только внутри него.
+
+| Функция | Возврат | Что даёт |
+| --- | --- | --- |
+| `httpGetMethod(idx)` | `string` | `GET`, `POST` и т. д. |
+| `httpGetURI(idx)` | `string` | путь **без** query: для `/echo?a=1` вернёт `/echo` |
+| `httpGetQuery(idx)` | `mapping` | query-параметры, значения-строки, уже декодированные |
+| `httpGetHeader(idx, key)` | `string` | один заголовок; имя нечувствительно к регистру |
+| `httpGetAllHeaders(idx)` | `mapping` | все заголовки запроса |
+| `httpGetContent(idx, content)` | `int` | тело запроса: `0` при успехе, `-1` при ошибке |
+| `httpGetPort(idx)` | `string` | порт, на который пришёл запрос |
+| `httpGetLanguage(idx)` | `int` | язык клиента, `0..getNoOfLangs()-1` |
+| `httpGetLanguageId(idx)` | `OaLanguage` | тот же выбор в виде enum |
+
+**Измерено:** `httpGetQuery()` декодирует `%20` и `+` в пробел, а UTF-8
+проценты — в символ (`%D0%B4` → `д`). У `POST` в `httpGetQuery()` попадает
+только query из URL; поля формы приходят в `names`/`values`.
+`httpGetContent()` на `GET` возвращает `0` и пустую строку; на `POST` с
+`application/x-www-form-urlencoded` и `text/plain` — всё тело как есть
+(`alpha=1&beta=two+words`, плюсы не декодируются). Для `POST` с `blob`
+документация предупреждает, что `httpGetContent()` недоступен: тело уже
+передано в callback; на стенде этот случай не проверялся.
+`httpGetLanguage()` на стенде вернул `1`, `httpGetLanguageId()` — `10027`.
+
+### Ответ клиенту
+
+Callback может вернуть `string`, `dyn_string` или `dyn_mixed`:
+
+| Возврат | Как трактуется |
+| --- | --- |
+| `string` | тело ответа; статус `200`, `Content-Type` из регистрации |
+| `dyn_string` | `[1]` — тело, `[2..]` — заголовки ответа |
+| `dyn_mixed` | `[1]` — тело (`string`, `blob` или `file`), остальные — заголовки; `"Status: 404 Not found"` меняет HTTP-статус |
+
+```c
+string cb() { return "<html>ok</html>"; }
+
+dyn_string cb2()
+{
+  dyn_string r;
+  r[1] = "body";
+  r[2] = "X-Probe: yes";
+  return r;
+}
+
+string cb3()
+{
+  dyn_mixed n;
+  dynAppend(n, "not found");
+  dynAppend(n, "Status: 404 Not found");
+  return n;
+}
+```
+
+**Измерено:** `Status: 201 Created` в `dyn_string` **не меняет** статус — код
+остаётся `200`, а `Status` приходит обычным заголовком. В `dyn_mixed` тот же
+`Status: 404 Not found` действительно даёт `404`. При `404` `netGet()` вернул
+`rc = -1`, но тело и заголовки в `mapping` доступны. Сервер сам добавляет
+`Cache-Control: no-cache, private, must-revalidate`, `X-XSS-Protection`,
+`X-Frame-Options`, `X-Content-Type-Options`.
+
+### Настройки и вспомогательные функции
+
+| Функция | Сигнатура | Назначение | 3.18 |
+| --- | --- | --- | --- |
+| `httpSetMaxAge()` | `int (uint maxAge)` | время кеширования файлов клиентом, секунды | `0` |
+| `httpSetMaxContentLength()` | `int (uint length)` | максимальный размер `POST`, по умолчанию 100 КБ | `0` |
+| `httpSetMethodHandler()` | `int (string method, string callback)` | перенаправить HTTP-метод в callback `(string ip, string url, int idx)` | см. ниже |
+| `httpMakeParamString()` | `string (dyn_string names, dyn_string values)` | собрать query-строку | `first=first%20value&second=second-value` |
+| `httpParseDate()` | `int (string date)` | разобрать дату RFC-2616 | функция есть, не проверялась |
+| `httpSetPermission()` | — | права на ресурс | функция есть, не проверялась |
+
+`httpSetMethodHandler()` в 3.18 принимает **DELETE, PUT, OPTIONS, TRACE,
+CONNECT** (`rc = 0`) и отвергает **PATCH, HEAD, GET, POST** и пустую строку
+(`rc = -1`, `WARNING 76` `Callback function already set or method not
+allowed`). Это расходится с документацией: там `CONNECT` назван запрещённым,
+а `PATCH` — допустимым.
+
+### Остальное семейство
+
+Эти функции в 3.18 объявлены (`isFunctionDefined()` → `TRUE`), но на стенде не
+проверялись: `httpSetPermission()`, `httpAccessLog()`,
+`httpSaveFilesFromUpload()`, `httpSetSecondaryAuthSuccess()`,
+`httpReadWebSocket()`, `httpWriteWebSocket()`, `httpCloseWebSocket()`,
+`httpOnConnectionClose()`. Функции `httpSetUlcUserName()` в 3.18 **нет**
+(`isFunctionDefined()` → `FALSE`).
+
+Статические файлы сервер отдаёт из каталогов `/pictures/`, `/images/`,
+`/colorDB/`, `/xml/`, `/nls/`, `/bin/`, `/data/`, `/log/`, `/panels/`,
+`/scripts/` (последние два — в зашифрованном виде); если ресурс `/` не
+зарегистрирован, ищется `<проект>/data/index.html`. По документации; на стенде
+не проверялось.
+
+### Измеренные оговорки 3.18
+
+| Оговорка | Поведение 3.18 |
+| --- | --- |
+| второй `httpServer()` | `-1` + `WARNING 54` |
+| занятый порт | `-1`, `getLastError()` пуст, причина только в журнале |
+| завершение скрипта | с установленным сервером менеджер не выходит; нужен `exit(0)` |
+| `httpGetURI()` | возвращает путь без query |
+| `httpGetQuery()` у `POST` | только query из URL; поля формы — в `names`/`values` |
+| `httpGetContent()` у `GET` | `rc = 0`, пустая строка |
+| `Status` в `dyn_string` | остаётся заголовком, HTTP-код `200` |
+| `Status` в `dyn_mixed` | меняет HTTP-код (проверено `404`) |
+| `netGet()` при `404` | `rc = -1`, но тело и заголовки доступны |
+| `httpSetMethodHandler()` | `DELETE`/`PUT`/`OPTIONS`/`TRACE`/`CONNECT` — да; `PATCH`/`HEAD`/`GET`/`POST` — нет |
+
+## 6. Смешанные ключи
 
 ```c
 mapping m;
@@ -282,7 +485,7 @@ DebugN(m["s"], m[1], m[2.5]);
 `jsonEncode()` такой `mapping` закодирует как `{}` — JSON требует строковых
 ключей.
 
-## 6. Порядок и позиционный доступ
+## 7. Порядок и позиционный доступ
 
 Порядок в `mapping` не гарантирован. `mappingKeys()`, `mappingGetKey()` и
 `mappingGetValue()` используют один и тот же внутренний порядок, поэтому
@@ -290,7 +493,7 @@ DebugN(m["s"], m[1], m[2.5]);
 не обязаны совпадать с порядком вставки. Не полагайтесь на порядок в
 протоколах и сравнениях — проверяйте ключи через `mappingHasKey()`.
 
-## 7. Типовой конвейер JSON + `net*`
+## 8. Типовой конвейер JSON + `net*`
 
 ```c
 mapping data = makeMapping("name", "test", "value", 42);
@@ -309,11 +512,12 @@ if (rc == 0)
 }
 ```
 
-`netPost()`/`netGet()` описаны в [13-http.md](13-http.md). Примеры раздела 14
-сеть не используют: они проверяют только сборку, кодирование, разбор и
-проверку структуры.
+`netPost()`/`netGet()` описаны в [13-http.md](13-http.md). Примеры 01–05 сеть
+не используют: они проверяют только сборку, кодирование, разбор и структуру.
+`06_httpServer.ctl` поднимает HTTP-сервер и делает loopback-запросы на
+`127.0.0.1`; внешняя сеть ему не нужна.
 
-## 8. Измеренные оговорки CTL 3.18 — коротко
+## 9. Измеренные оговорки CTL 3.18 — коротко
 
 | Оговорка | Поведение 3.18 |
 | --- | --- |
@@ -332,8 +536,11 @@ if (rc == 0)
 | `jsonDecode()` BOM | ошибка `Invalid value` |
 | `jsonDecode(atime-объекта)` | `mapping`, не `atime` |
 | ошибка `jsonDecode()` | не `-1`; проверяйте `dynlen(getLastError())` |
+| HTTP-сервер и завершение | с установленным `httpServer()` менеджер не выходит без `exit(0)` |
+| `Status` в `dyn_string` | остаётся заголовком; HTTP-код меняет только `dyn_mixed` |
+| `httpSetMethodHandler()` | `DELETE`/`PUT`/`OPTIONS`/`TRACE`/`CONNECT` — да; `PATCH`/`HEAD`/`GET`/`POST` — нет |
 
-## 9. Примеры
+## 10. Примеры
 
 | Файл | Что проверяет |
 | --- | --- |
@@ -342,6 +549,7 @@ if (rc == 0)
 | [`03_mapping.ctl`](../examples/14-legacyFoo/03_mapping.ctl) | `makeMapping`, присваивание, `mappingHasKey`, `mappingKeys`, `mappinglen`, позиционный доступ, `mappingRemove`, `mappingClear`, смешанные ключи |
 | [`04_json_pipeline.ctl`](../examples/14-legacyFoo/04_json_pipeline.ctl) | сборка `mapping` → `jsonEncode` → `jsonDecode` → проверка структуры без сети |
 | [`05_bits.ctl`](../examples/14-legacyFoo/05_bits.ctl) | `getBit`, `setBit`, `checkPattern`, `setPattern` на `bit32`, границы позиций, шаблоны |
+| [`06_httpServer.ctl`](../examples/14-legacyFoo/06_httpServer.ctl) | `httpServer`, `httpConnect`/`httpDisconnect`, `httpGet*`, `httpSet*`, шаблон ресурса, `GET`/`POST`, `dyn_string`/`dyn_mixed`, loopback |
 
 Запуск раздела:
 

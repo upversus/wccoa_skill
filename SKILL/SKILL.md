@@ -124,6 +124,7 @@ PowerShell, сначала перейди в каталог скилла.
 | Прочитать значение, качество, время | [playbooks/reading-data.md](playbooks/reading-data.md) | `03-read/01_dpGet.ctl` |
 | Выполнить HTTP-запрос из CTL (GET/POST/PUT/DELETE/HEAD) | `docs/13-http.md` | `docs/13-http.md` |
 | Собрать/разобрать JSON, работать с `mapping` и битами `bit32`/`bit64` | `docs/14-legacyFoo.md` | `14-legacyFoo/05_bits.ctl` |
+| Поднять HTTP-сервер из CTL и принять запрос | `docs/14-legacyFoo.md` | `14-legacyFoo/06_httpServer.ctl` |
 | Записать значение в устройство | `docs/04-write.md` | `11-address/10_address_modbus_write.ctl` |
 | Дождаться изменения значения | `docs/05-subscribe.md` | `05-subscribe/01_dpConnect.ctl` |
 | Создать или удалить точку и тип | `docs/01-create.md`, `docs/09-delete.md` | `01-create/`, `09-delete/` |
@@ -205,6 +206,11 @@ $env:WCCOA_CTRL_EXE = 'C:\Sybcom\Kaskad\3.18\bin\WCCOActrl.exe'
   стенде не проверялся.
 - **Защищённый канал OPC UA.** Всё делалось анонимно по `None`. `Sign`,
   `SignAndEncrypt`, клиентский сертификат и авторизация не тронуты.
+- **HTTP-сервер проверен частично.** Измерены `httpServer`, `httpConnect`,
+  `httpDisconnect`, `httpGet*`, `httpSetMaxAge/MaxContentLength/MethodHandler`
+  и `httpMakeParamString` на loopback без аутентификации. Не проверялись:
+  аутентификация (`Basic`, `Negotiate`, `NTLM`), HTTPS, статические файлы,
+  WebSocket и `httpSaveFilesFromUpload`.
 - **Один стенд.** CTL 3.18, драйверы Modbus и OPC UA, Kepware KEPServerEX V6.
   На другой версии WinCC OA расхождения с документацией 3.21.6 могут быть
   другими, и на другом сервере могут не поддерживаться те же типы.
@@ -255,7 +261,7 @@ docs/                    справочник по операциям
   11-address.md            периферийный адрес, полный рецепт, таблица кодов
   12-map-to-ctl.md         от референса пользователя до работающей точки
   13-http.md               клиентские HTTP-функции net*
-  14-legacyFoo.md          JSON в памяти и mapping (legacyFoo)
+  14-legacyFoo.md          JSON, mapping, биты, HTTP-сервер (legacyFoo)
 examples/                проверенные примеры CTL
   00-scenario/             полный цикл и разведки по структуре типа
   01-create/ .. 09-delete/ по операциям
