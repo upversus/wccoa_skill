@@ -25,6 +25,10 @@
     запущенного HTTP-тестового сервера (tools/net-test-server/). Когда
     сервер запущен, добавьте -IncludeNet.
 
+    Раздел 15-influx в -All по умолчанию НЕ входит: его пример требует живой
+    InfluxDB стенда (kaskadhdb на 127.0.0.1:8086). Когда база доступна,
+    добавьте -IncludeInflux.
+
     Код возврата: 0 — все оценённые примеры прошли, 1 — есть сбои или примеры
     без сводки. Скрипты в папках exp\ и файлы, имя которых начинается с "_",
     не запускаются: это черновики и служебные файлы.
@@ -40,6 +44,9 @@ param(
     # Включить 13-net в -All. По умолчанию раздел пропускается: его примеры
     # требуют запущенного HTTP-тестового сервера (tools/net-test-server/).
     [switch]$IncludeNet,
+    # Включить 15-influx в -All. По умолчанию раздел пропускается: его пример
+    # требует живой InfluxDB стенда (база kaskadhdb на 127.0.0.1:8086).
+    [switch]$IncludeInflux,
     # Как и в run-ctl.ps1, 'auto' - проект берётся из командной строки
     # запущенного рантайма. Явное имя нужно, только если поднято несколько
     # проектов одновременно.
@@ -214,6 +221,22 @@ if ($All -and -not $Script -and -not $Section -and -not $IncludeNet) {
     $targets = @($targets | Where-Object { $_.DirectoryName -ne $netDir })
 }
 
+# 15-influx требует живой InfluxDB стенда (база kaskadhdb на 127.0.0.1:8086).
+# Это готовит пользователь, поэтому в финальный гейт раздел по умолчанию не входит.
+if ($All -and -not $Script -and -not $Section -and -not $IncludeInflux) {
+    $influxDir = Join-Path $root '15-influx'
+    $influxAll = @($targets | Where-Object { $_.DirectoryName -eq $influxDir })
+    if ($influxAll.Count -gt 0) {
+        $influxSkipped = $influxAll.Count
+        Write-Host ''
+        Write-Host ("  ВНИМАНИЕ: раздел 15-influx ИСКЛЮЧЁН из прогона: {0} скриптов." -f $influxAll.Count)
+        Write-Host '  Причина: нужна живая InfluxDB kaskadhdb на 127.0.0.1:8086.'
+        Write-Host '  Проверка доступности: curl.exe -s -i http://127.0.0.1:8086/ping'
+        Write-Host '  Включить в прогон: .\verify.ps1 -All -IncludeInflux'
+    }
+    $targets = @($targets | Where-Object { $_.DirectoryName -ne $influxDir })
+}
+
 if ($targets.Count -eq 0) {
     if ($before -gt 0) {
         Write-Host 'Все скрипты отфильтрованы: служебные и долгоживущие, сводки у них нет по существу.'
@@ -246,6 +269,8 @@ if ($simPort -le 0) {
 
 $modbusOn = @(Get-NetTCPConnection -LocalPort $simPort -State Listen -ErrorAction SilentlyContinue)
 $needModbus = @($targets | Where-Object { $_.Name -match 'modbus' })
+$needInflux = @($targets | Where-Object { $_.DirectoryName -eq (Join-Path $root '15-influx') })
+$influxOn = @(Get-NetTCPConnection -LocalPort 8086 -State Listen -ErrorAction SilentlyContinue)
 
 Write-Host ''
 Write-Host '================================================================'
@@ -258,6 +283,11 @@ if ($needModbus.Count -gt 0) {
         Write-Host "   Примеры Modbus упадут: $($needModbus.Count). Запуск:"
         Write-Host '   tools\modbus-sim\modbus-sim.ps1 start'
     }
+}
+if ($needInflux.Count -gt 0 -and $influxOn.Count -eq 0) {
+    Write-Host " ВНИМАНИЕ: InfluxDB не отвечает (порт 8086 молчит)."
+    Write-Host "   Примеры 15-influx упадут: $($needInflux.Count)."
+    Write-Host '   Проверка: curl.exe -s -i http://127.0.0.1:8086/ping'
 }
 Write-Host '================================================================'
 
@@ -350,6 +380,9 @@ Write-Host ("  пропущено:         $skipped")
 Write-Host ("  всего:             $($rows.Count)")
 if ($addrSkipped -gt 0) {
     Write-Host ("  исключено (11-address, нужен стенд): $addrSkipped скриптов")
+}
+if ($influxSkipped -gt 0) {
+    Write-Host ("  исключено (15-influx, нужна InfluxDB): $influxSkipped скриптов")
 }
 
 if ($bad -gt 0 -or $nosum -gt 0 -or $skipped -gt 0) {

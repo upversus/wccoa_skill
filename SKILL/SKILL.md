@@ -123,6 +123,7 @@ PowerShell, сначала перейди в каталог скилла.
 | Адрес настроен, а данных нет | [playbooks/diagnosing-silent-address.md](playbooks/diagnosing-silent-address.md) | — |
 | Прочитать значение, качество, время | [playbooks/reading-data.md](playbooks/reading-data.md) | `03-read/01_dpGet.ctl` |
 | Выполнить HTTP-запрос из CTL (GET/POST/PUT/DELETE/HEAD) | `docs/13-http.md` | `docs/13-http.md` |
+| Прочитать тревоги и события напрямую из InfluxDB (только чтение) | `docs/15-influx.md` | `15-influx/01_netGet_influx.ctl` |
 | Собрать/разобрать JSON, работать с `mapping` и битами `bit32`/`bit64` | `docs/14-legacyFoo.md` | `14-legacyFoo/05_bits.ctl` |
 | Поднять HTTP-сервер из CTL и принять запрос | `docs/14-legacyFoo.md` | `14-legacyFoo/06_httpServer.ctl` |
 | Записать значение в устройство | `docs/04-write.md` | `11-address/10_address_modbus_write.ctl` |
@@ -187,7 +188,10 @@ $env:WCCOA_CTRL_EXE = 'C:\Sybcom\Kaskad\3.18\bin\WCCOActrl.exe'
 
 - **Примеров записи и тревог.** `docs/04-write.md` и `docs/08-alerts.md`
   содержат только текст, проверенных `.ctl` нет, каталог `examples/04-write/`
-  пуст. Два раздела из тринадцати не имеют примеров.
+  пуст. Два раздела из пятнадцати не имеют примеров.
+- **Записи в InfluxDB.** `docs/15-influx.md` описывает только чтение базы
+  тревог и событий NGA. Запись через `/write`, line protocol или
+  `INSERT`/`DROP`/`DELETE` запрещена и в скилле не документируется.
 - **Эмулятора OPC UA.** Рабочий стенд возможен только с реальным сервером.
   Для Modbus эмулятор есть, для OPC UA пришлось обойтись Kepware.
 - **Ответа про `VARIANT_ID` и `ELEMENT_ID` в адресе OPC UA.** В адресе стоит
@@ -262,6 +266,7 @@ docs/                    справочник по операциям
   12-map-to-ctl.md         от референса пользователя до работающей точки
   13-http.md               клиентские HTTP-функции net*
   14-legacyFoo.md          JSON, mapping, биты, HTTP-сервер (legacyFoo)
+  15-influx.md             прямые HTTP-запросы к InfluxDB проекта (только чтение)
 examples/                проверенные примеры CTL
   00-scenario/             полный цикл и разведки по структуре типа
   01-create/ .. 09-delete/ по операциям

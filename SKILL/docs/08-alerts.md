@@ -468,3 +468,6 @@ setACount() / getACount()             ──▶ номер тревоги в ati
 
 ---
 Подписка на тревоги — [05-subscribe.md](05-subscribe.md).
+
+Архив тревог NGA лежит в InfluxDB; прочитать его напрямую по HTTP (только
+чтение) — [15-influx.md](15-influx.md).

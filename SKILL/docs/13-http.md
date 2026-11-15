@@ -225,3 +225,6 @@ int netHead(string url, mapping &result [, mapping options]);
 Сборка и разбор JSON в памяти CTL (`jsonEncode`, `jsonDecode`, `mapping`) —
 [14-legacyFoo.md](14-legacyFoo.md). Типовой конвейер: `mapping` → `jsonEncode`
 → `netPost` → `netGet` → `jsonDecode` → `mappingHasKey`.
+
+Прямые запросы к InfluxDB проекта через `netGet` (база тревог и событий NGA,
+только чтение) — [15-influx.md](15-influx.md).
