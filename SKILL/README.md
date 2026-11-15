@@ -112,6 +112,57 @@ Modbus, настроенный OPC UA, карта адресов. Раздел `
 
 Подробный список — в `SKILL.md`, раздел «Известные дыры».
 
+## Реализованные функции CTL
+
+Все функции ниже проверены запуском на живом проекте. Устаревшие,
+нереализованные и исключённые функции не в списке.
+
+### 01-create — создание, проверка, имена
+`dpCreate()`, `dpExists()`, `dpTypeCreate()`, `dpTypeGet()`, `dpTypes()`,
+`dpTypeName()`, `dpTypeRefName()`, `dpGetDpTypeRefs()`, `dpGetRefsToDpType()`,
+`dpNames()`, `nameCheck()`
+
+### 02-config — конфиги, атрибуты, оформление
+`dpSet()`, `dpSetWait()`, `dpSetTimed()`, `dpSetTimedWait()`, `dpSetAlias()`,
+`dpGetAlias()`, `dpSetUnit()`, `dpSetFormat()`, `dpSetDescription()`,
+`dpGetDescription()`, `dpGetAllAttributes()`, `dpGetAllDetails()`,
+`dpGetAllConfigs()`, `dpCopyConfig()`, `dpCopyConfigMerge()`,
+`dpCopyConfigMergeBufferClear()`
+
+### 03-read — чтение
+`dpGet()`, `dpGetPeriod()`, `dpGetMaxAge()`, `dpGetStatusBit()`, `dpGetUnit()`,
+`dpGetFormat()`, `dpElementType()`, `dpAttributeType()`, `dpSubStr()`,
+`dpValToString()`, `dpAliasToName()`, `dpGetId()`, `dpGetName()`
+
+### 05-subscribe — подписки
+`dpConnect()`, `dpConnectUserData()`
+
+### 06-query — SQL-запросы
+`dpQuery()`, `checkQuery()`
+
+### 07-copy — клонирование
+`dpCopy()`, `dpCopyBufferClear()`
+
+### 09-delete — удаление и смена типа
+`dpDelete()`, `dpTypeDelete()`, `dpTypeChange()`
+
+### 13-http — клиентские HTTP-функции net*
+`netGet()`, `netPost()`, `netPut()`, `netDelete()`, `netHead()`
+
+### 14-legacyFoo — JSON, mapping, биты, HTTP-сервер
+`jsonEncode()`, `jsonDecode()`, `makeMapping()`, `mappingHasKey()`,
+`mappingKeys()`, `mappinglen()`, `mappingGetKey()`, `mappingGetValue()`,
+`mappingRemove()`, `mappingClear()`, `getBit()`, `setBit()`, `checkPattern()`,
+`setPattern()`, `httpServer()`, `httpConnect()`, `httpDisconnect()`,
+`httpGetMethod()`, `httpGetURI()`, `httpGetQuery()`, `httpGetHeader()`,
+`httpGetAllHeaders()`, `httpGetContent()`, `httpGetPort()`, `httpGetLanguage()`,
+`httpGetLanguageId()`, `httpSetMaxAge()`, `httpSetMaxContentLength()`,
+`httpSetMethodHandler()`, `httpMakeParamString()`
+
+### 15-influx — прямые запросы к InfluxDB проекта (только чтение)
+`netGet()`, `httpMakeParamString()`, `jsonDecode()` — только `GET /query`,
+база `kaskadhdb`. Запись в базу запрещена.
+
 ## Откуда взялось
 
 WinCC OA 3.18, драйвер Modbus 2, эмулятор на TCP 504. Стенд тестовый,
