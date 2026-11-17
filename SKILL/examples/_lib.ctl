@@ -126,3 +126,125 @@ void dpdDropDp(string dpName)
     DebugN("  teardown: dpDelete(", dpName, ") rc=", rc);
   }
 }
+
+// ---------------------------------------------------------------------------
+// Помощники тревог (раздел 08).
+//
+// Каждый пример раздела 08 — самодостаточен и содержит свою копию этого блока
+// в конце файла. Здесь они лежат как эталон: новое поведение правится здесь,
+// затем копируется в примеры.
+//
+// Точка: тип ExampleDP_DDE, элемент b1. dpCreate() получает имя БЕЗ точки.
+// ---------------------------------------------------------------------------
+#define ALERT_DEMO_CLASS "System1:alert."
+#define ALERT_DEMO_TYPE  "ExampleDP_DDE"
+#define ALERT_DEMO_CONN  ".b1:_alert_hdl.."
+
+// Создаёт временную точку base и настраивает _alert_hdl на элементе b1.
+// Возвращает DPE (base + ".b1") или "" при ошибке. Точка создаётся с
+// активным _alert_hdl, значение _original сброшено в FALSE.
+string alertDemoCreate(string base)
+{
+  string dpe = base + ".b1";
+  if (dpExists(base))
+  {
+    dpSet(dpe + ":_alert_hdl.._active", FALSE);
+    delay(1);
+    dpDelete(base);
+  }
+
+  if (dpCreate(base, ALERT_DEMO_TYPE) != 0 || !dpExists(base))
+  {
+    return "";
+  }
+
+  dpSetWait(dpe + ":_original.._value", FALSE);
+  int rcCfg = dpSetTimedWait(0,
+      dpe + ":_alert_hdl.._active",   FALSE,
+      dpe + ":_alert_hdl.._type",     DPCONFIG_ALERT_BINARYSIGNAL,
+      dpe + ":_alert_hdl.._class",    ALERT_DEMO_CLASS,
+      dpe + ":_alert_hdl.._text0",    "OK",
+      dpe + ":_alert_hdl.._text1",    "ALARM",
+      dpe + ":_alert_hdl.._orig_hdl", TRUE);
+  if (rcCfg != 0)
+  {
+    return "";
+  }
+
+  if (dpSetTimedWait(0, dpe + ":_alert_hdl.._active", TRUE) != 0)
+  {
+    return "";
+  }
+  return dpe;
+}
+
+// Записывает «плохое» значение и ждёт появления тревоги (до 10 с).
+bool alertDemoCame(string dpe)
+{
+  if (dpSetWait(dpe + ":_original.._value", TRUE) != 0)
+  {
+    return false;
+  }
+  int ar = 0;
+  for (int i = 1; i <= 50; i++)
+  {
+    dpGet(dpe + ":_alert_hdl.._act_range", ar);
+    if (ar != 0)
+    {
+      return true;
+    }
+    delay(0.2);
+  }
+  return false;
+}
+
+// Читает время начала тревоги и строит atime. TRUE только если и время,
+// и atime ненулевые — это условие допуска к alertSet*().
+bool alertDemoAtime(string dpe, time &t, atime &At)
+{
+  t = 0;
+  At = 0;
+  if (dpGet(dpe + ":_original.._stime", t) != 0)
+  {
+    return false;
+  }
+  if (t == 0)
+  {
+    return false;
+  }
+  At = makeATime(t, 0, dpe);
+  return At != 0;
+}
+
+// Возвращает «хорошее» значение: тревога уходит.
+void alertDemoGone(string dpe)
+{
+  dpSetWait(dpe + ":_original.._value", FALSE);
+  delay(0.5);
+}
+
+// Убирает точку. Если тревога висит и не квитирована — квитирует её
+// (только при валидном atime), затем снимает _active и удаляет точку.
+void alertDemoDrop(string base, string dpe)
+{
+  int ar = 0;
+  int ast = 0;
+  dpGet(dpe + ":_alert_hdl.._act_range", ar);
+  dpGet(dpe + ":_alert_hdl.._act_state", ast);
+  if (ar != 0 && (ast == 1 || ast == 3))
+  {
+    time t;
+    atime At;
+    if (alertDemoAtime(dpe, t, At))
+    {
+      alertSet(t, getACount(At), dpe + ":_alert_hdl.._ack_state",
+               DPATTR_ACKTYPE_SINGLE);
+    }
+  }
+  dpSetWait(dpe + ":_alert_hdl.._active", FALSE);
+  delay(1);
+  if (dpExists(base))
+  {
+    dpDelete(base);
+  }
+}
