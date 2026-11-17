@@ -98,6 +98,57 @@ main()
   }
 
   // ---------------------------------------------------------------------
+  // 1b. Страховочный проход: тестовые точки тревог
+  // ---------------------------------------------------------------------
+  // Примеры раздела 08-alerts создают точки на типе проекта ExampleDP_DDE.
+  // В MY_TYPES их нет: тип принадлежит проекту, удалять его нельзя. Поэтому
+  // точки ищем по типу и фильтруем по имени. Проход нужен, если пример
+  // оборвался до своей уборки.
+  DebugN("");
+  DebugN("(1b) страховочный проход по ExampleDP_DDE");
+
+  int alertDps = 0;
+  dyn_string ddeDps = dpNames("*", "ExampleDP_DDE");
+  for (int i = 1; i <= dynlen(ddeDps); i++)
+  {
+    if (strpos(ddeDps[i], "dptest_alert_08_") < 0) { continue; }
+    alertDps++;
+
+    // Снимаем обработку тревог, чтобы dpDelete не оставил висящую тревогу.
+    string dpeA = ddeDps[i] + ".b1";
+    if (dpExists(dpeA))
+    {
+      dpSet(dpeA + ":_alert_hdl.._active", FALSE);
+      delay(0.5);
+    }
+
+    int rc = dpDelete(ddeDps[i]);
+    DebugN("    dpDelete(", ddeDps[i], ") rc=", rc);
+  }
+  DebugN("  наших точек тревог найдено: ", alertDps);
+
+  // dpDelete асинхронен - ждём, пока точки исчезнут.
+  for (int attempt = 1; attempt <= 20; attempt++)
+  {
+    int leftAlerts = 0;
+    dyn_string nowDps = dpNames("*", "ExampleDP_DDE");
+    for (int i = 1; i <= dynlen(nowDps); i++)
+    {
+      if (strpos(nowDps[i], "dptest_alert_08_") >= 0) { leftAlerts++; }
+    }
+    if (leftAlerts == 0) { break; }
+    delay(1);
+  }
+
+  int leftAlerts = 0;
+  dyn_string afterAlerts = dpNames("*", "ExampleDP_DDE");
+  for (int i = 1; i <= dynlen(afterAlerts); i++)
+  {
+    if (strpos(afterAlerts[i], "dptest_alert_08_") >= 0) { leftAlerts++; }
+  }
+  dpdCheck("тестовых точек тревог не осталось", leftAlerts == 0);
+
+  // ---------------------------------------------------------------------
   // 2. Типы
   // ---------------------------------------------------------------------
   DebugN("");
