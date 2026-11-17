@@ -236,6 +236,8 @@ Get-ChildItem examples -Recurse -Filter *.ctl |
 133 проверки. Измеренные оговорки 3.18 (точный `atime` из `_alert_hdl.._alerts`,
 `_ack_state`/`_ack_oblig` только через `alertGet`, пара при `_ack_type=3`,
 смена `_original.._stime` после WENT) — в [08-alerts.md](08-alerts.md).
+Отдельно измерен режим multi-instance (несколько экземпляров на одном DPE,
+управление через `_alert_hdl.<N>._event`, а не значением) — там же.
 
 ## 09. Удаление и смена типа — [09-delete.md](09-delete.md)
 

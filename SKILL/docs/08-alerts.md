@@ -5,6 +5,10 @@
 данных, взводит на ней тревогу, выполняет проверки, квитирует её и удаляет точку.
 Демо-точка `System1:ExampleDP_AlertHdl1.` не используется и не изменяется.
 
+Отдельный подраздел — [multi-instance тревоги](#multi-instance-тревоги-несколько-экземпляров-на-одном-dpe):
+это режим `_alert_hdl`, а не функция API, поэтому своего примера в наборе у него
+нет и счётчик функций раздела он не меняет.
+
 Запуск одного примера и всего раздела:
 
 ```powershell
@@ -80,6 +84,152 @@ dpSetWait(dpe + ":_original.._value", TRUE);   // CAME: _act_range = 1
 Готовые помощники (`alertDemoCreate`, `alertDemoCame`, `alertDemoAtime`,
 `alertDemoGone`, `alertDemoDrop`) лежат в `examples/_lib.ctl` и дословно
 скопированы в каждый пример.
+
+---
+
+## Multi-instance тревоги: несколько экземпляров на одном DPE
+
+Обычная тревога привязана к значению элемента: `_original.._value` перешёл в
+«плохой» диапазон — CAME, вернулся в «хороший» — WENT. **Multi-instance** — другой
+режим `_alert_hdl`: на одном DPE может одновременно жить много независимых
+экземпляров тревоги, а приходят и уходят они **не от значения**, а от события
+`_event`, которое пишет драйвер (OPC UA A&C, S7, IEC) или CTRL-скрипт.
+
+Это режим конфига, а не отдельная функция API. На стенде он измерен целиком; ниже —
+рабочая последовательность.
+
+### 1. Конфигурация пишется одним `dpSetWait`
+
+Режим требует битового элемента: на `BIT32` всё работает, на `BOOL` запись
+`_multi_instance = TRUE` **молча игнорируется** (остаётся `FALSE`). Диапазон 1 —
+«хороший», диапазоны 2 и больше — аварийные; у каждого аварийного диапазона свой
+`_match` и свой класс.
+
+```c
+// Свой тип: struct + BIT32. На ExampleDP_DDE (bool b1) режим не включится.
+dyn_dyn_string n; dyn_dyn_int t;
+n[1] = makeDynString("dptest_mi_t");   t[1] = makeDynInt(DPEL_STRUCT);
+n[2] = makeDynString("", "state");     t[2] = makeDynInt(0, DPEL_BIT32);
+dpTypeCreate(n, t);
+
+string dpe = "dptest_mi_probe.state";
+dpCreate("dptest_mi_probe", "dptest_mi_t");
+dpSetWait(dpe + ":_original.._value", 0);
+
+dpSetWait(
+  dpe + ":_alert_hdl.._type",           DPCONFIG_ALERT_NONBINARYSIGNAL,  // 13
+  dpe + ":_alert_hdl.._multi_instance", TRUE,
+  dpe + ":_alert_hdl.1._type",          DPDETAIL_RANGETYPE_MATCH,        // 5
+  dpe + ":_alert_hdl.2._type",          DPDETAIL_RANGETYPE_MATCH,
+  dpe + ":_alert_hdl.1._match",         "*",                             // хороший диапазон
+  dpe + ":_alert_hdl.2._match",         "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx1",
+  dpe + ":_alert_hdl.1._class",         "",
+  dpe + ":_alert_hdl.2._class",         "System1:alert.",
+  dpe + ":_alert_hdl.2._text",          "MI ALARM",
+  dpe + ":_alert_hdl.._active",         TRUE);
+```
+
+`_match` — шаблон из 32 символов: `x` — «бит не важен», `1` — «бит должен быть
+установлен». В примере для диапазона 2 сдвинут один бит; шаблоны диапазонов
+строятся так же, как в `para.ctl`.
+
+**Одним вызовом — обязательно.** Если писать по частям (`_active`, потом
+`_multi_instance`, потом диапазоны), Event Manager часть изменений не применяет:
+`dpSetWait` возвращает `-1` без текста ошибки либо значение не сохраняется
+(`_multi_instance` читается обратно как `FALSE`). После успешной записи
+`_num_ranges = 2`, `_multi_instance = TRUE`, `_alert_hdl.2._type = 5`.
+
+### 2. CAME и WENT — через `_event`
+
+Адрес — **реальный DPE с элементом**, затем `_alert_hdl.<диапазон>._event`
+(одинарная точка перед именем атрибута). Форма `"System1:ExampleDP.:_alert_hdl.2._event"`
+с точкой после имени точки данных не сработает: `DP does not exist`.
+
+```c
+time t = getCurrentTime();
+
+alertSet(t, 0, dpe + ":_alert_hdl.2._event", DPATTR_ALERTEVENT_CAME);  // 0
+delay(5);
+alertSet(t, 0, dpe + ":_alert_hdl.2._event", DPATTR_ALERTEVENT_WENT);  // 2
+```
+
+Время и номер у WENT должны **точно совпадать** с CAME. Повторный WENT — no-op:
+третий экземпляр не появляется.
+
+Константы, измеренные в CTL 3.18:
+
+| Константа | Значение |
+| --- | --- |
+| `DPATTR_ALERTEVENT_CAME` | `0` |
+| `DPATTR_ALERTEVENT_CAME_IMPULSE` | `1` |
+| `DPATTR_ALERTEVENT_WENT` | `2` |
+| `DPATTR_ALERTEVENT_RE_ALARM` | `8` |
+| `DPATTR_ALERTEVENT_GONE_IMPULSE` | **не определена** (`Variable not defined`) |
+| `DPATTR_ALERTEVENT_GONE_INACTIVE` | **не определена** (`Variable not defined`) |
+
+### 3. Значение DPE не участвует
+
+Проверено: запись `_original.._value` `0 → 1 → 0` при включённом multi-instance
+**не создаёт и не снимает ни одной тревоги** — `_alert_hdl.._alerts` остаётся
+пустым, `_act_range = 1`. Тревоги появляются только от `_event`; значение
+экземпляра (`alertGet(..., ":_alert_hdl.2._value")`) — отдельный атрибут тревоги.
+
+### 4. Атрибуты экземпляра читаются с индексом диапазона
+
+Это главное отличие от обычной тревоги. Для multi-instance адрес атрибута
+экземпляра содержит номер диапазона:
+
+```c
+dyn_atime al;
+dpGet(dpe + ":_alert_hdl.._alerts", al);          // список экземпляров — как обычно
+
+dyn_anytype v;
+alertGet(al[i], getACount(al[i]), dpe + ":_alert_hdl.2._direction", v);  // TRUE = CAME
+```
+
+Форма без диапазона `dpe + ":_alert_hdl.._direction"` для multi-instance
+возвращает **пустой** `dyn_anytype` и **пустой** `getLastError()` — то есть
+молча ничего, а не ошибку.
+
+### 5. Что показывают `_alerts` и `_ack_oblig`
+
+После CAME — один экземпляр `(t, 0)`: `_direction = TRUE`, `_act_state = 1`,
+`_ack_oblig = TRUE`, `_came_time = t`, `_gone_time = 0`, `_act_range = 2`.
+
+После WENT с той же парой `(t, 0)` в `_alerts` уже **две** записи:
+
+* сторона CAME `(t, 0)` — `_act_state = 3`, `_ack_oblig = FALSE`;
+* сторона WENT (время WENT, `count + 1`) — `_direction = FALSE`,
+  `_ack_oblig = TRUE`.
+
+`_act_range` возвращается в `1` (тревога снята). Это штатная семантика
+`_ack_type = 3`, а не дубликат: квитируется та сторона, у которой
+`_ack_oblig = TRUE`.
+
+### 6. Импульсные тревоги
+
+`DPATTR_ALERTEVENT_CAME_IMPULSE` создаёт экземпляр без пары WENT. Измерено:
+даже при `_alert_hdl.._impulse = TRUE` тревога остаётся открытой —
+`_gone_time = 0`, `_act_range = 2`; автоматического WENT не происходит. То есть
+импульс фиксирует только факт возникновения и требует обычного квитирования.
+
+### 7. `_add_values`
+
+Дополнительные значения (в документации — до 32) можно передать **в том же
+сообщении**, что и событие:
+
+```c
+alertSet(t, 0, dpe + ":_alert_hdl.2._event", DPATTR_ALERTEVENT_CAME,
+         t, 0, dpe + ":_alert_hdl.2._add_values", makeDynAnytype("SRC1", 42));
+```
+
+Измерено: переданные значения сохраняются в экземпляре и читаются обратно через
+`alertGet(..., ":_alert_hdl.2._add_values")`; без них экземпляр содержит
+заполнители `-?-`.
+
+> **Цена проверки.** Для режима нужен собственный тип с `BIT32`; в набор
+> `examples/08-alerts/` он не входит, чтобы не менять счётчики раздела. Всё
+> перечисленное измерено на временной точке, точка и тип после проверки удалены.
 
 ---
 
@@ -591,13 +741,25 @@ DebugN(getAIdentifier(At));                        // "System1:ExampleDP_DDE.b1.
 | `setAIdentifier` на пустом `atime` | `rc = 0`, имя пишется, время остаётся `0` |
 | `isAlertAttribute` | `TRUE` для `_ack_state`, `_alert_fore_color`; `FALSE` для `_archive`, `_original.._value`, `_event`; голые имена тоже `TRUE` |
 | Класс `System1:alert.` | `_ack_type=3`, `_archive=TRUE`, `_archive_time=31536000` (год) |
+| Multi-instance: конфигурация | `_type=13` + `_multi_instance=TRUE` + `_alert_hdl.N._type=DPDETAIL_RANGETYPE_MATCH` + `_match` + `_active=TRUE` — только одним `dpSetWait` |
+| Multi-instance: запись по частям | не применяется: `dpSetWait` даёт `-1` без текста либо значение не сохраняется |
+| Multi-instance на `BOOL` | `_multi_instance=TRUE` игнорируется (читается `FALSE`); на `BIT32` работает |
+| `_event` для multi-instance | `DPATTR_ALERTEVENT_CAME=0`, `CAME_IMPULSE=1`, `WENT=2`, `RE_ALARM=8`; `GONE_IMPULSE`/`GONE_INACTIVE` не определены |
+| Значение DPE при multi-instance | запись `0 → 1 → 0` не создаёт и не снимает тревог (`_alerts` пуст, `_act_range=1`) |
+| Атрибуты экземпляра multi-instance | только с индексом диапазона: `:_alert_hdl.2._direction`; форма `:_alert_hdl.._direction` даёт пустой `dyn_anytype` без ошибки |
+| `_alerts` после WENT (multi-instance) | две записи: сторона CAME (`_act_state=3`, `_ack_oblig=FALSE`) и сторона WENT (время WENT, `count+1`, `_ack_oblig=TRUE`) |
+| Повторный WENT (multi-instance) | no-op, новый экземпляр не создаётся |
+| `CAME_IMPULSE` (в т.ч. `_impulse=TRUE`) | открытый экземпляр: `_gone_time=0`, `_act_range=2`, автоматического WENT нет |
+| `_add_values` в сообщении события | сохраняются в экземпляре (`["SRC1", 42]`), без них — заполнители `-?-` |
 
 **След на стенде.** Все примеры квитируют тревоги перед удалением точки (или
 гасят `_active`), поэтому живых точек и неквитированных тревог не остаётся. Класс
 архивирует тревоги на год, поэтому в архиве NGA после полного прогона остаются
 квитированные тестовые тревоги — до 6 за прогон (по одной на алертный пример).
 Это осознанная цена проверки на живом стенде. Страховочная уборка — раздел `1b` в
-`examples/cleanup_stand.ctl`.
+`examples/cleanup_stand.ctl`. У multi-instance своего примера нет: его проверка шла
+на временной точке, которая после измерений удалена, поэтому открытых тревог она
+не оставляет.
 
 ---
 
@@ -611,6 +773,10 @@ alertGet(a, getACount(a), attr)          ──▶ прочитать атриб
 alertSet() / alertSetWait()              ──▶ записать атрибут тревоги
 alertSetTimed() / alertSetTimedWait()    ──▶ то же с ручной меткой времени
 isAlertAttribute()                       ──▶ проверить атрибут до вызова
+
+_alert_hdl.._multi_instance              ──▶ режим нескольких экземпляров на одном DPE
+_alert_hdl.<N>._event                    ──▶ CAME/WENT multi-instance тревоги
+_alert_hdl.<N>._direction                ──▶ атрибуты экземпляра: только с номером диапазона
 
 getAIdentifier() / setAIdentifier()      ──▶ имя точки данных в atime
 setACount() / getACount()                ──▶ номер тревоги в atime
