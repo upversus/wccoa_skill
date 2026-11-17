@@ -93,15 +93,31 @@ bool alertDemoAtime(string dpe, time &t, atime &At)
 {
   t = 0;
   At = 0;
-  if (dpGet(dpe + ":_original.._stime", t) != 0)
+  if (dpGet(dpe + ":_original.._stime", t) != 0 || t == 0)
   {
     return false;
   }
-  if (t == 0)
+
+  // makeATime(t, 0, dpe) здесь не годится: у реальной тревоги счётчик может
+  // быть не 0 (например, 1), и alertSet()/alertGet() молча не находят её.
+  // Точный atime со счётчиком отдаёт _alert_hdl.._alerts.
+  dyn_atime al;
+  if (dpGet(dpe + ":_alert_hdl.._alerts", al) != 0)
   {
     return false;
   }
-  At = makeATime(t, 0, dpe);
+  for (int i = 1; i <= dynlen(al); i++)
+  {
+    dyn_anytype d;
+    if (alertGet(al[i], getACount(al[i]), dpe + ":_alert_hdl.._direction", d) != 0)
+    {
+      continue;
+    }
+    if (dynlen(d) == 1 && (bool)d[1])
+    {
+      At = al[i];
+    }
+  }
   return At != 0;
 }
 
@@ -116,17 +132,30 @@ void alertDemoGone(string dpe)
 // (только при валидном atime), затем снимает _active и удаляет точку.
 void alertDemoDrop(string base, string dpe)
 {
-  int ar = 0;
-  int ast = 0;
-  dpGet(dpe + ":_alert_hdl.._act_range", ar);
-  dpGet(dpe + ":_alert_hdl.._act_state", ast);
-  if (ar != 0 && (ast == 1 || ast == 3))
+  // Квитируется та сторона пары, у которой _ack_oblig == TRUE: для пары это
+  // либо ещё висящая CAME, либо уже ушедшая WENT. У текущей стороны время
+  // совпадает с _original.._stime, поэтому оно и передаётся в alertSet().
+  dyn_atime al;
+  if (dpGet(dpe + ":_alert_hdl.._alerts", al) == 0)
   {
-    time t;
-    atime At;
-    if (alertDemoAtime(dpe, t, At))
+    time t = 0;
+    dpGet(dpe + ":_original.._stime", t);
+    atime target = 0;
+    for (int i = 1; i <= dynlen(al); i++)
     {
-      alertSet(t, getACount(At), dpe + ":_alert_hdl.._ack_state",
+      dyn_anytype ob;
+      if (alertGet(al[i], getACount(al[i]), dpe + ":_alert_hdl.._ack_oblig", ob) != 0)
+      {
+        continue;
+      }
+      if (dynlen(ob) == 1 && (bool)ob[1])
+      {
+        target = al[i];
+      }
+    }
+    if (target != 0 && t != 0)
+    {
+      alertSet(t, getACount(target), dpe + ":_alert_hdl.._ack_state",
                DPATTR_ACKTYPE_SINGLE);
     }
   }
@@ -205,7 +234,20 @@ main()
   time t;
   atime At;
   dpdCheck("время тревоги и atime ненулевые", alertDemoAtime(dpe, t, At));
-  dpdCheck("getACount(atime) == 0 (первая тревога сегмента)", getACount(At) == 0);
+
+  // atime берётся из _alert_hdl.._alerts: только так счётчик совпадает с
+  // реальной тревогой (makeATime с нулём может указать в пустоту).
+  dyn_atime al;
+  dpGet(dpe + ":_alert_hdl.._alerts", al);
+  bool found = FALSE;
+  for (int i = 1; i <= dynlen(al); i++)
+  {
+    if (al[i] == At)
+    {
+      found = TRUE;
+    }
+  }
+  dpdCheck("atime CAME взят из _alert_hdl.._alerts", found);
 
   // --- alertGet по одному атрибуту ----------------------------------------
   dyn_anytype v;
