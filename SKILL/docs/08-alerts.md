@@ -124,6 +124,11 @@ for (int i = 1; i <= dynlen(al); i++)             // ищем CAME
 стенде это выглядело как «запись иногда не срабатывает»: время совпадало до
 миллисекунды, а номер — нет.
 
+Отдельно: `makeATime()` требует **существующий** DPE. На несуществующем имени он
+пишет в журнал `WARNING 71 DP does not exist`, а `atime` остаётся нулевым —
+`getAIdentifier()` вернёт `"."`. Поэтому в примерах `setACount`,
+`getAIdentifier` и `setAIdentifier` сначала создают свою временную точку.
+
 ---
 
 ## alertGet()
@@ -478,7 +483,7 @@ setACount(Z, 5);               // rc=0
 Такой `atime` проходит проверку `At != 0` и **не должен** попадать в
 `alertSet*()`. Отсюда требование проверять ещё и `t != 0`.
 
-**Скрипт.** `examples/08-alerts/08_setACount.ctl` ✅ проверено, 11/11
+**Скрипт.** `examples/08-alerts/08_setACount.ctl` ✅ проверено, 12/12
 
 **Типичные ошибки**
 
@@ -519,7 +524,7 @@ for (int i = 1; i <= dynlen(al); i++)
 Это не ошибка 3.18, а следствие формата имени; в примерах используется именованный
 элемент `b1`.
 
-**Скрипт.** `examples/08-alerts/09_getAIdentifier.ctl` ✅ проверено, 8/8
+**Скрипт.** `examples/08-alerts/09_getAIdentifier.ctl` ✅ проверено, 9/9
 
 ---
 
@@ -555,7 +560,7 @@ DebugN(getAIdentifier(At));                        // "System1:ExampleDP_DDE.b1.
 записывается, но время остаётся нулевым: пригодным для `alertSet*()` такой
 `atime` не становится (в отличие от `setACount`).
 
-**Скрипт.** `examples/08-alerts/10_setAIdentifier.ctl` ✅ проверено, 10/10
+**Скрипт.** `examples/08-alerts/10_setAIdentifier.ctl` ✅ проверено, 11/11
 
 **Типичные ошибки**
 
@@ -571,6 +576,7 @@ DebugN(getAIdentifier(At));                        // "System1:ExampleDP_DDE.b1.
 | --- | --- |
 | Точный `atime` живой тревоги | `dpGet(dpe + ":_alert_hdl.._alerts", dyn_atime)`; счётчик может быть `0` или `1` |
 | `makeATime(t, 0, dpe)` для живой тревоги | может дать счётчик `0` при реальном `1` → `alertSet`/`alertGet` молча ничего не делают (`rc=0`) |
+| `makeATime` на **несуществующем** DPE | `WARNING 71 DP does not exist`, `atime` нулевой, `getAIdentifier` даёт `"."` — для работы с именем нужна реальная точка |
 | `_ack_state`, `_ack_oblig` | атрибуты экземпляра тревоги; только `alertGet`/`alertConnect`/`SELECT ALERT`, у обоих в таблице конфига пустая колонка `dpGet` |
 | `dpGet` по `_ack_state` | переменная **не меняется** (значение не записывается) |
 | `dpGet` по `_ack_oblig` | отдаёт конфиг `FALSE`, а экземпляр — `TRUE` |

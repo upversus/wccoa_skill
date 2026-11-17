@@ -1,7 +1,8 @@
 // 10_setAIdentifier.ctl - setAIdentifier(): запись имени точки данных в atime.
 // Документация: docs/08-alerts.md#setaidentifier
 // Проверено: CTL 3.18, проект <проект стенда>.
-// Скрипт самодостаточен: работает с atime в памяти, живая тревога не нужна.
+// Скрипт самодостаточен: сам создаёт временную точку dptest_alert_08_10,
+// собирает на ней atime и удаляет точку. Живая тревога не нужна.
 //
 // Функция проверяет, что имя существует, но не проверяет, что это атрибут
 // тревоги: полная строка вида "DPE:_alert_hdl.._attr" сохраняется дословно.
@@ -29,20 +30,43 @@ main()
   DebugN("=== setAIdentifier() ===");
   DebugN("  сигнатура: int setAIdentifier(atime &AlertTime, string Identifier)");
 
+  dyn_dyn_string typeNames;
+  dyn_dyn_int typeTypes;
+  if (dpTypeGet("ExampleDP_DDE", typeNames, typeTypes) != 0)
+  {
+    DebugN("  SKIP  в проекте нет типа ExampleDP_DDE");
+    dpdSummary();
+    exit(0);
+  }
+
+  string base = "dptest_alert_08_10";
+  if (dpExists(base))
+  {
+    dpDelete(base);
+    delay(1);
+  }
+  if (dpCreate(base, "ExampleDP_DDE") != 0 || !dpExists(base))
+  {
+    dpdCheck("точка " + base + " создана", false);
+    dpdSummary();
+    exit(1);
+  }
+
+  string dpe = "System1:" + base + ".b1";
   time t = getCurrentTime();
-  atime At = makeATime(t, 0, "System1:ExampleDP_DDE.b1");
+  atime At = makeATime(t, 0, dpe);
   dpdCheck("atime собран из ненулевого времени", At != 0);
 
   // --- существующий DPE ---------------------------------------------------
-  int rc = setAIdentifier(At, "System1:ExampleDP_DDE.b1");
+  int rc = setAIdentifier(At, dpe);
   string id = getAIdentifier(At);
   DebugN("  setAIdentifier(DPE) rc=", rc, " id='", id, "'");
   dpdCheck("setAIdentifier(существующий DPE) вернул 0", rc == 0);
-  dpdCheck("имя читается обратно как System1:ExampleDP_DDE.b1.",
-           id == "System1:ExampleDP_DDE.b1.");
+  dpdCheck("имя читается обратно как " + dpe + ".",
+           id == dpe + ".");
 
   // --- полная строка атрибута ---------------------------------------------
-  string full = "System1:ExampleDP_DDE.b1:_alert_hdl.._abbr";
+  string full = dpe + ":_alert_hdl.._abbr";
   rc = setAIdentifier(At, full);
   id = getAIdentifier(At);
   DebugN("  setAIdentifier(полный атрибут) rc=", rc, " id='", id, "'");
@@ -59,12 +83,16 @@ main()
   // --- пустой atime -------------------------------------------------------
   atime Z;
   dpdCheck("пустой atime равен нулю", Z == 0);
-  rc = setAIdentifier(Z, "System1:ExampleDP_DDE.b1");
+  rc = setAIdentifier(Z, dpe);
   DebugN("  setAIdentifier(пустой atime) rc=", rc,
          " id='", getAIdentifier(Z), "' time='", (string)Z, "'",
          " zero=", (Z == 0), "  lastError=", getLastError());
   dpdCheck("пустой atime — rc=0 (имя пишется без проверки времени)", rc == 0);
   dpdCheck("время при этом осталось нулевым (в отличие от setACount)", Z == 0);
+
+  dpDelete(base);
+  delay(1);
+  dpdCheck("точка " + base + " удалена", !dpExists(base));
 
   dpdSummary();
   exit(0);

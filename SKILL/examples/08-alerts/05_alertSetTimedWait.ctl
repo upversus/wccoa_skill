@@ -171,7 +171,9 @@ main()
     dpdSummary();
     exit(0);
   }
-  if (dynlen(dpNames("*", "ExampleDP_DDE")) == 0)
+  dyn_dyn_string typeNames;
+  dyn_dyn_int typeTypes;
+  if (dpTypeGet("ExampleDP_DDE", typeNames, typeTypes) != 0)
   {
     DebugN("  SKIP  в проекте нет типа ExampleDP_DDE");
     dpdSummary();
