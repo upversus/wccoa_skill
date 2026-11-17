@@ -11,8 +11,8 @@
 | Папка | Содержание |
 | --- | --- |
 | `SKILL.md` | входная точка: правила, порядок работы, индекс задач |
-| `docs/` | справочник по операциям CTL, с измеренными оговорками к документации (включая раздел 13 по клиентским HTTP-функциям `net*`, раздел 14 по JSON/mapping и раздел 15 по прямым запросам к InfluxDB — только чтение) |
-| `examples/` | 87 примеров CTL по этапам; финальный гейт `-All` прогоняет 53, раздел `11-address` (17) — отдельно на подготовленном стенде, раздел `13-net` (4) — с запущенным тестовым HTTP-сервером, раздел `15-influx` (1) — с живой InfluxDB |
+| `docs/` | справочник по операциям CTL, с измеренными оговорками к документации (включая раздел 13 по клиентским HTTP-функциям `net*`, раздел 14 по JSON/mapping/HTTP-серверу/динамическим вызовам и раздел 15 по прямым запросам к InfluxDB — только чтение) |
+| `examples/` | 88 примеров CTL по этапам; финальный гейт `-All` прогоняет 54, раздел `11-address` (17) — отдельно на подготовленном стенде, раздел `13-net` (4) — с запущенным тестовым HTTP-сервером, раздел `15-influx` (1) — с живой InfluxDB |
 | `playbooks/` | четыре пошаговых сценария задач |
 | `tools/` | эмулятор Modbus, генератор CTL, валидатор, `opcuactl` |
 
@@ -67,7 +67,7 @@ node .\tools\gen-modbus-dp.js .\tools\modbus-sim\devices\smart-temp-press.json `
 .\examples\verify.ps1 -All
 ```
 
-Гейт прогоняет 53 скрипта (разделы 00–09, `14-legacyFoo` и сценарий). Раздел
+Гейт прогоняет 54 скрипта (разделы 00–09, `14-legacyFoo` и сценарий). Раздел
 `11-address` исключён намеренно: ему нужен подготовленный стенд — эмулятор
 Modbus, настроенный OPC UA, карта адресов. Раздел `13-net` исключён, пока не
 запущен HTTP-тестовый сервер, а `15-influx` — пока не поднята InfluxDB стенда
@@ -77,10 +77,10 @@ Modbus, настроенный OPC UA, карта адресов. Раздел `
 `-IncludeInflux`. Прогон занимает несколько минут и создаёт временные точки,
 которые за собой убирает.
 
-Полный прогон: 53/53, код возврата 0. Раздел `14-legacyFoo` даёт 6 примеров и
-160 проверок; раздел `13-net` при `-IncludeNet` — ещё 4 примера и 38 проверок;
+Полный прогон: 54/54, код возврата 0. Раздел `14-legacyFoo` даёт 7 примеров и
+220 проверок; раздел `13-net` при `-IncludeNet` — ещё 4 примера и 38 проверок;
 раздел `15-influx` при `-IncludeInflux` — 1 пример и 24 проверки. С
-`-IncludeInflux` гейт прогоняет 54 скрипта.
+`-IncludeInflux` гейт прогоняет 55 скриптов.
 
 ## Лицензии и сторонние компоненты
 
@@ -149,7 +149,7 @@ Modbus, настроенный OPC UA, карта адресов. Раздел `
 ### 13-http — клиентские HTTP-функции net*
 `netGet()`, `netPost()`, `netPut()`, `netDelete()`, `netHead()`
 
-### 14-legacyFoo — JSON, mapping, биты, HTTP-сервер
+### 14-legacyFoo — JSON, mapping, биты, HTTP-сервер, динамические вызовы
 `jsonEncode()`, `jsonDecode()`, `makeMapping()`, `mappingHasKey()`,
 `mappingKeys()`, `mappinglen()`, `mappingGetKey()`, `mappingGetValue()`,
 `mappingRemove()`, `mappingClear()`, `getBit()`, `setBit()`, `checkPattern()`,
@@ -157,7 +157,9 @@ Modbus, настроенный OPC UA, карта адресов. Раздел `
 `httpGetMethod()`, `httpGetURI()`, `httpGetQuery()`, `httpGetHeader()`,
 `httpGetAllHeaders()`, `httpGetContent()`, `httpGetPort()`, `httpGetLanguage()`,
 `httpGetLanguageId()`, `httpSetMaxAge()`, `httpSetMaxContentLength()`,
-`httpSetMethodHandler()`, `httpMakeParamString()`
+`httpSetMethodHandler()`, `httpMakeParamString()`, `callFunction()`,
+`checkScript()`, `evalScript()`, `evalScriptRestricted()`, `execScript()`,
+`execScriptRestricted()`, `isFunctionDefined()`
 
 ### 15-influx — прямые запросы к InfluxDB проекта (только чтение)
 `netGet()`, `httpMakeParamString()`, `jsonDecode()` — только `GET /query`,

@@ -126,6 +126,7 @@ PowerShell, сначала перейди в каталог скилла.
 | Прочитать тревоги и события напрямую из InfluxDB (только чтение) | `docs/15-influx.md` | `15-influx/01_netGet_influx.ctl` |
 | Собрать/разобрать JSON, работать с `mapping` и битами `bit32`/`bit64` | `docs/14-legacyFoo.md` | `14-legacyFoo/05_bits.ctl` |
 | Поднять HTTP-сервер из CTL и принять запрос | `docs/14-legacyFoo.md` | `14-legacyFoo/06_httpServer.ctl` |
+| Вызвать функцию по имени или выполнить текст скрипта в рантайме | `docs/14-legacyFoo.md` | `14-legacyFoo/07_dynamic_calls.ctl` |
 | Записать значение в устройство | `docs/04-write.md` | `11-address/10_address_modbus_write.ctl` |
 | Дождаться изменения значения | `docs/05-subscribe.md` | `05-subscribe/01_dpConnect.ctl` |
 | Создать или удалить точку и тип | `docs/01-create.md`, `docs/09-delete.md` | `01-create/`, `09-delete/` |
@@ -265,7 +266,7 @@ docs/                    справочник по операциям
   11-address.md            периферийный адрес, полный рецепт, таблица кодов
   12-map-to-ctl.md         от референса пользователя до работающей точки
   13-http.md               клиентские HTTP-функции net*
-  14-legacyFoo.md          JSON, mapping, биты, HTTP-сервер (legacyFoo)
+  14-legacyFoo.md          JSON, mapping, биты, HTTP-сервер, динамические вызовы (legacyFoo)
   15-influx.md             прямые HTTP-запросы к InfluxDB проекта (только чтение)
 examples/                проверенные примеры CTL
   00-scenario/             полный цикл и разведки по структуре типа

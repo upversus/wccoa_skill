@@ -1,15 +1,16 @@
-# 14. JSON, mapping, биты и HTTP-сервер — legacyFoo
+# 14. JSON, mapping, биты, HTTP-сервер и динамические вызовы — legacyFoo
 
 Раздел назван `legacyFoo` по договорённости: сюда складываются функции CTL,
 не относящиеся к точкам данных, и раздел будет пополняться. Сейчас в нём
-четыре темы: JSON в памяти (`jsonEncode`, `jsonDecode`), ассоциативные массивы
-`mapping`, работа с битами `bit32`/`bit64` и HTTP-сервер (`httpServer()` и
-семейство `http*`).
+пять тем: JSON в памяти (`jsonEncode`, `jsonDecode`), ассоциативные массивы
+`mapping`, работа с битами `bit32`/`bit64`, HTTP-сервер (`httpServer()` и
+семейство `http*`) и динамические вызовы (`callFunction()`, `checkScript()`,
+`evalScript()`, `execScript()` с restricted-вариантами).
 
 > ⛔ **JSON ≠ HTTP.** `jsonEncode()` и `jsonDecode()` работают только с памятью
 > CTL-скрипта и **не делают сетевых запросов**. HTTP — это `netGet()`,
 > `netPost()` и остальные `net*` из [13-http.md](13-http.md). Конвейер
-> «собрать JSON → отправить → разобрать ответ» описан в разделе 8.
+> «собрать JSON → отправить → разобрать ответ» описан в разделе 9.
 
 Источники (документация 3.21.6, проверка — CTL 3.18):
 
@@ -20,6 +21,12 @@
 * [httpServer()](https://www.winccoa.com/documentation/WinCCOA/latest/en_US/ControlE_R/httpServer.html)
 * [httpConnect()](https://www.winccoa.com/documentation/WinCCOA/latest/en_US/ControlE_R/httpConnect.html)
 * [HTTP Functions](https://www.winccoa.com/documentation/WinCCOA/latest/de_AT/Control_Grundlagen/http_functions.html)
+* [callFunction()](https://www.winccoa.com/documentation/WinCCOA/latest/de_AT/ControlA_D/callFunction_2.html)
+* [checkScript()](https://www.winccoa.com/documentation/WinCCOA/latest/de_AT/ControlA_D/checkScript_2.html)
+* [evalScript()](https://www.winccoa.com/documentation/WinCCOA/latest/de_AT/ControlE_R/evalScript_3.html)
+* [evalScriptRestricted()](https://www.winccoa.com/documentation/WinCCOA/latest/de_AT/ControlE_R/evalScriptRestricted.html)
+* [execScript()](https://www.winccoa.com/documentation/WinCCOA/latest/de_AT/ControlE_R/execScript_3.html)
+* [execScriptRestricted()](https://www.winccoa.com/documentation/WinCCOA/latest/de_AT/ControlE_R/execScriptRestricted.html)
 
 Проверено запуском: CTL 3.18, проект `<проект стенда>`. Всё, что помечено
 **«измерено»**, проверено на стенде и может расходиться с документацией.
@@ -481,7 +488,272 @@ allowed`). Это расходится с документацией: там `CO
 | `netGet()` при `404` | `rc = -1`, но тело и заголовки доступны |
 | `httpSetMethodHandler()` | `DELETE`/`PUT`/`OPTIONS`/`TRACE`/`CONNECT` — да; `PATCH`/`HEAD`/`GET`/`POST` — нет |
 
-## 6. Смешанные ключи
+## 6. Динамические вызовы: `callFunction()`, `checkScript()`, `evalScript()`, `execScript()`
+
+Две независимые возможности, которые часто путают:
+
+* **вызвать функцию по имени-строке** — `callFunction()`;
+* **собрать текст скрипта и выполнить его** — `checkScript()`,
+  `evalScript()`, `execScript()` и их restricted-варианты.
+
+Первая работает с уже загруженными функциями, вторая компилирует новый скрипт
+в рантайме. Общего у них только то, что имя/текст приходит из данных, а не из
+кода, поэтому обе требуют проверки до вызова.
+
+| Функция | Сигнатура | Назначение |
+| --- | --- | --- |
+| `callFunction()` | `anytype (string funcName[, <параметр> ...])` | вызвать функцию по имени |
+| `checkScript()` | `bool (string scriptstr[, int &errorPos])` | проверить синтаксис текста |
+| `evalScript()` | `int (anytype &retVal, string script[, dyn_string dollars[, <arg> ...]])` | выполнить текст, вернуть значение `main` |
+| `evalScriptRestricted()` | то же | то же, но с белым списком функций |
+| `execScript()` | `int (string script[, dyn_string dollars[, <arg> ...]])` | выполнить текст без возврата (`void main`) |
+| `execScriptRestricted()` | то же | то же, но с белым списком функций |
+
+### `callFunction()`
+
+```c
+anytype callFunction(string funcName[, <параметр1>[, <параметр2>]] ...);
+```
+
+`funcName` — **строка без скобок**, регистр важен. Параметры передаются как
+в обычном вызове, возврат — то, что вернула вызванная функция.
+
+```c
+time t = callFunction("makeTime", 1999, 8, 13, 13, 40, 10, 50);
+int ms = callFunction("hour", t);      // 13
+int f  = callFunction("floor", 2.25);  // 2
+int s  = callFunction("myAdd", 17, 8); // 25 — своя функция тоже вызывается
+```
+
+**Имя.** `"hour()"`, `"Hour"` и `"nosuchfunc"` не находятся: в журнале
+`SEVERE 72, Function not defined` и `SEVERE 176, Uncaught exception in thread
+started at main`, остаток `main()` не выполняется. Проверять имя заранее
+можно через `isFunctionDefined()`:
+
+| Проверка | 3.18 |
+| --- | --- |
+| `isFunctionDefined("hour")` | `TRUE` |
+| `isFunctionDefined("hour()")` | `FALSE` — скобки не допускаются |
+| `isFunctionDefined("Hour")` | `FALSE` — регистр важен |
+| `isFunctionDefined("nosuchfunc_xyz")` | `FALSE` |
+
+`TRUE` от `isFunctionDefined()` означает только «имя объявлено». Оно не
+проверяет ни число/типы параметров, ни видимость, ни запрет restricted-режима
+(`isFunctionDefined("dpGet")` в 3.18 тоже `TRUE`).
+
+**Возврат.** Документация требует обязательно присваивать результат: иначе
+скрипт закрывается без сообщения, и это же относится к вызову внутри
+`DebugN()`. **Измерено в 3.18: не закрывается.** Работают оба варианта:
+
+```c
+callFunction("hour", t);                 // продолжает
+DebugN(callFunction("hour", t));         // печатает 13 и продолжает
+```
+
+Полагаться на это не стоит: поведение расходится с документацией и может
+измениться в другой версии. Присваивайте результат.
+
+**Измеренные случаи 3.18.**
+
+| Случай | Поведение |
+| --- | --- |
+| своя функция скрипта | вызывается |
+| `private` функция **того же** скрипта | вызывается (документация обещает ошибку) |
+| `synchronized` функция | вызывается напрямую, в том числе рекурсивно через `callFunction` |
+| `void`-функция | выполняется, возврат — undefined `anytype` + `WARNING 73, … (forgotten return in callFunction?)` |
+| неверный тип параметра | приводится: `callFunction("floor", "not a number")` → `0`, без ошибки |
+| несуществующее имя / скобки / другой регистр | `SEVERE 72` + `SEVERE 176`, скрипт останавливается |
+
+Про `synchronized` документация предупреждает: напрямую такие функции
+вызывать нельзя, нужен mutex. На стенде прямой вызов и рекурсия отработали,
+но переносимый вариант — как в документации:
+
+```c
+uint lock_someFunc;
+int someFunc(int x) synchronized(lock_someFunc) { return x + 100; }
+
+int r = callFunction("someFunc", 5);   // работает и по документации
+```
+
+Стек-трейс содержит только вызов `callFunction()`, а не вызванную функцию.
+С функциями панелей и панельных ссылок `callFunction()` работать не будет:
+вызов идёт в другом контексте. `private`-функция другого скрипта на стенде не
+проверялась.
+
+### `checkScript()`
+
+```c
+bool checkScript(string scriptstr[, int &errorPos]);   // 3.18
+bool checkScript(string scriptstr[, int &errorPos | mapping &errorData]); // документация 3.21
+```
+
+Возврат: `TRUE` — синтаксис корректный, `FALSE` — есть ошибка.
+
+**Вариант с `mapping &errorData` в 3.18 отсутствует.** Второй аргумент
+принимается только как `int &errorPos`; передача `mapping` даёт
+`WARNING 50, … cannot assign variable of type INTEGER_VAR`. Ориентируйтесь на
+`errorPos`.
+
+`errorPos` — **0-based смещение** символа, на котором парсер остановился:
+
+| Скрипт | Результат | `errorPos` |
+| --- | --- | --- |
+| `main(){ DebugN(123); }` | `TRUE` | `0` |
+| `main(){ DebugN(1; }` | `FALSE` | `16` — позиция `;` |
+| `main( {` | `FALSE` | `6` |
+| `int main(){ return ; }` | `FALSE` | `19` — позиция `;` |
+| `int main(){ return 1 }` | `FALSE` | не измерялся |
+
+**`TRUE` не означает «скрипт исполнится».** Измерено: `checkScript()` не
+проверяет ни наличие `main`, ни существование функций, ни ограничения
+restricted-режима. Все эти строки дают `TRUE`:
+
+* `""` — пустая строка;
+* `"int foo(){ return 1; }"` — нет `main`, `evalScript()` потом вернёт `-1`;
+* `"main(){ int x; int x; }"` — повторное объявление переменной;
+* `"int main(){ return nosuchfunc_xyz(); }"` — неизвестная функция;
+* `"int main(){ int x; dpGet(\"System1:_1s\", x); }"` — `dpGet` запрещён в
+  restricted-режиме, но синтаксис верный.
+
+`getLastError()` после `checkScript()` на стенде пуст (`dyn_errClass 0 items`)
+и для `TRUE`, и для `FALSE`. Диагностика — только `errorPos`.
+
+```c
+int pos = -1;
+if (!checkScript(text, pos))
+  DebugN("синтаксис, позиция", pos);
+```
+
+Практический порядок: `checkScript()` → проверка, что в тексте есть `main`
+(например `strpos(text, "main")`) → `evalScript()`/`execScript()` → разбор
+кода возврата и журнала.
+
+### `evalScript()` и `evalScriptRestricted()`
+
+```c
+int evalScript(anytype &retVal, string script
+               [, dyn_string dollars [, <тип> <arg> ...]]);
+int evalScriptRestricted(anytype &retVal, string script
+               [, dyn_string dollars [, <тип> <arg> ...]]);
+```
+
+`retVal` получает возврат `main`, `dollars` — подстановки `$имя:значение`,
+остальные аргументы — параметры `main`. Возврат `0` при успехе и `-1` при
+ошибке.
+
+**Измерено: `-1` приходит только тогда, когда скрипт не удалось запустить.**
+
+| Случай | `rc` | `retVal` | Журнал |
+| --- | --- | --- | --- |
+| успешный `int main()` | `0` | значение `main` | — |
+| нет `main` | `-1` | не меняется | `SEVERE 72` |
+| синтаксическая ошибка | `-1` | **не сбрасывается** (остаётся прежнее) | `WARNING 81` |
+| тип возврата не совпал с переменной | `0` | `0` | — |
+| неизвестная функция внутри | `0` | `0` | `SEVERE 72` + `SEVERE 176` |
+| отсутствует `$`-параметр | `0` | `0` | `SEVERE 17/ctrl` + `SEVERE 176` |
+| вызов функции вызывающего скрипта | `0` | `0` | `SEVERE 72` + `SEVERE 176` |
+
+То есть ошибки времени выполнения **не меняют код возврата**. Проверять
+`rc == 0` недостаточно: скрипт может молча не выполниться, а признак останется
+только в журнале менеджера. Это главная ловушка обеих функций.
+
+`retVal` при ошибке не обнуляется — в нём остаётся значение, которое было до
+вызова. Если это важно, присваивайте начальное значение сами и проверяйте его
+после вызова.
+
+Функцию, объявленную в вызывающем скрипте, из `evalScript()` вызвать нельзя —
+она не видна в новом скрипте. `$`-параметры задаются строками вида
+`"$val1:12345"` и подставляются в текст до компиляции:
+
+```c
+int sum = 0;
+int rc = evalScript(sum, "int main(int a, int b){ return a + b; }",
+                    makeDynString(), 17, 8);   // rc=0, sum=25
+```
+
+Вложенный `evalScript()` (без restricted) работает: внутренний скрипт
+возвращает значение, внешний его использует.
+
+### `execScript()` и `execScriptRestricted()`
+
+```c
+int execScript(string script[, dyn_string dollars[, <тип> <arg> ...]]);
+int execScriptRestricted(string script[, dyn_string dollars[, <тип> <arg> ...]]);
+```
+
+Предназначены для `void main` — без возврата. Возврат `0`/`-1`, ошибки и
+`$`-параметры — как у `evalScript()`. **Измерено:** `int main()` с возвратом
+тоже принимается и даёт `rc == 0` (так же сделано в примере документации);
+значение при этом никуда не попадает — для возврата нужен `evalScript()`.
+
+### Restricted-режим: что разрешено
+
+`evalScriptRestricted()`/`execScriptRestricted()` запрещают два класса
+функций (по документации):
+
+* функции пользовательского интерфейса;
+* функции из CTRL-extension.
+
+Всё остальное — по белому списку из документации `execScriptRestricted()`:
+математика, строки, `dyn_*`, `mapping`, `jsonEncode`/`jsonDecode`, время,
+`checkScript`, `callFunction`, чтение свойств точек данных (`dpExists`,
+`dpGetUnit`, `dpNames`, `dpGetAllAttributes` и т. п.), `DebugN`,
+`getLastError`, `startThread`/`stopThread`, `setVariable`, `throw` и др.
+Записи в точки данных (`dpSet`), подписок (`dpConnect`), запросов (`dpQuery`)
+и сетевых вызовов (`netGet`, `netPost`, `http*`, кроме `httpParseDate`) в
+списке нет.
+
+**Измерено в 3.18:**
+
+| Что | Результат |
+| --- | --- |
+| `strlen`, `checkScript`, `callFunction("strlen", …)` | разрешены, `rc == 0` |
+| `dpGet`, `dpSet`, `netGet` напрямую | `WARNING 38, Function <имя> is not allowed in restricted mode` + `SEVERE 176` |
+| `callFunction("netGet", …)` | **тоже блокируется**: `callFunction` не обходит белый список |
+| `evalScriptRestricted()` внутри restricted | блокируется в 3.18 (`WARNING 38`); документация разрешает с 3.19 |
+| `checkScript()` запрещённого скрипта | `TRUE` — ограничения не проверяются |
+| `rc` при запрещённой функции | `0` (не `-1`), `retVal` сохраняет прежнее значение |
+
+Отсюда практические правила:
+
+1. `checkScript()` не является проверкой безопасности: он смотрит только
+   синтаксис.
+2. `rc == 0` в restricted-режиме не доказывает, что скрипт выполнился.
+   Запрещённая функция видна только в журнале менеджера.
+3. «Restricted» — не песочница. Белый список включает `startThread`,
+   `setVariable`, `throw` и чтение конфигурации точек данных; не выполняйте
+   в нём текст, пришедший от недоверенного источника.
+4. Проверяйте новый динамический скрипт на тестовом менеджере и смотрите
+   журнал, а не только `rc`.
+
+### Измеренные оговорки 3.18 — динамические вызовы
+
+| Оговорка | Поведение 3.18 |
+| --- | --- |
+| `callFunction` без присваивания возврата | продолжает (документация: закрывает скрипт) |
+| `callFunction` внутри `DebugN` | продолжает |
+| `private` функция того же скрипта | вызывается |
+| `synchronized` функция | вызывается напрямую, рекурсия тоже |
+| `void` через `callFunction` | undefined `anytype` + `WARNING 73` |
+| неверный тип параметра | приводится, `floor("not a number")` → `0` |
+| имя со скобками / другой регистр | `SEVERE 72` + `SEVERE 176`, скрипт останавливается |
+| `checkScript(..., mapping &errorData)` | **нет** в 3.18, только `int &errorPos` |
+| `errorPos` | 0-based смещение символа ошибки |
+| `checkScript("")` | `TRUE` |
+| `checkScript` без `main` / с неизвестной функцией | `TRUE` — проверяется только синтаксис |
+| `evalScript`/`execScript`: нет `main` | `rc = -1` |
+| `evalScript`/`execScript`: синтаксис | `rc = -1`, `retVal` не сбрасывается |
+| `evalScript`/`execScript`: ошибка времени выполнения | `rc = 0`, `SEVERE` в журнале |
+| тип возврата не совпал | `rc = 0`, значение `0` |
+| вызов функции вызывающего скрипта | не видна: `rc = 0`, `SEVERE 72` |
+| restricted: запрещённая функция | `rc = 0`, `WARNING 38`, `retVal` прежний |
+| restricted: обход через `callFunction` | не работает |
+| restricted: вложенный restricted | в 3.18 запрещён (с 3.19 разрешён) |
+
+Пример: [`07_dynamic_calls.ctl`](../examples/14-legacyFoo/07_dynamic_calls.ctl) —
+60 проверок, без точек данных и сети.
+
+## 7. Смешанные ключи
 
 ```c
 mapping m;
@@ -496,7 +768,7 @@ DebugN(m["s"], m[1], m[2.5]);
 `jsonEncode()` такой `mapping` закодирует как `{}` — JSON требует строковых
 ключей.
 
-## 7. Порядок и позиционный доступ
+## 8. Порядок и позиционный доступ
 
 Порядок в `mapping` не гарантирован. `mappingKeys()`, `mappingGetKey()` и
 `mappingGetValue()` используют один и тот же внутренний порядок, поэтому
@@ -504,7 +776,7 @@ DebugN(m["s"], m[1], m[2.5]);
 не обязаны совпадать с порядком вставки. Не полагайтесь на порядок в
 протоколах и сравнениях — проверяйте ключи через `mappingHasKey()`.
 
-## 8. Типовой конвейер JSON + `net*`
+## 9. Типовой конвейер JSON + `net*`
 
 ```c
 mapping data = makeMapping("name", "test", "value", 42);
@@ -528,7 +800,7 @@ if (rc == 0)
 `06_httpServer.ctl` поднимает HTTP-сервер и делает loopback-запросы на
 `127.0.0.1`; внешняя сеть ему не нужна.
 
-## 9. Измеренные оговорки CTL 3.18 — коротко
+## 10. Измеренные оговорки CTL 3.18 — коротко
 
 | Оговорка | Поведение 3.18 |
 | --- | --- |
@@ -550,8 +822,20 @@ if (rc == 0)
 | HTTP-сервер и завершение | с установленным `httpServer()` менеджер не выходит без `exit(0)` |
 | `Status` в `dyn_string` | остаётся заголовком; HTTP-код меняет только `dyn_mixed` |
 | `httpSetMethodHandler()` | `DELETE`/`PUT`/`OPTIONS`/`TRACE`/`CONNECT` — да; `PATCH`/`HEAD`/`GET`/`POST` — нет |
+| `callFunction` без присваивания / в `DebugN` | продолжает (документация: закрывает скрипт) |
+| `callFunction`: `private` и `synchronized` | вызываются; рекурсия synchronized тоже |
+| `callFunction`: `void` | undefined `anytype` + `WARNING 73` |
+| `callFunction`: неверный тип | приводится, без ошибки |
+| `callFunction`: имя со скобками / регистр | `SEVERE 72` + `SEVERE 176`, скрипт останавливается |
+| `checkScript`: `mapping &errorData` | в 3.18 нет, только `int &errorPos` |
+| `checkScript("")`, без `main`, неизвестная функция | `TRUE` — только синтаксис |
+| `evalScript`/`execScript`: ошибка времени выполнения | `rc = 0`, `SEVERE` в журнале |
+| `evalScript`/`execScript`: `retVal` при `-1` | не сбрасывается |
+| restricted: запрещённая функция | `rc = 0`, `WARNING 38`, `retVal` прежний |
+| restricted: `callFunction` как обход | не работает |
+| restricted: вложенный restricted | в 3.18 запрещён (с 3.19 разрешён) |
 
-## 10. Примеры
+## 11. Примеры
 
 | Файл | Что проверяет |
 | --- | --- |
@@ -561,6 +845,7 @@ if (rc == 0)
 | [`04_json_pipeline.ctl`](../examples/14-legacyFoo/04_json_pipeline.ctl) | сборка `mapping` → `jsonEncode` → `jsonDecode` → проверка структуры без сети |
 | [`05_bits.ctl`](../examples/14-legacyFoo/05_bits.ctl) | `getBit`, `setBit`, `checkPattern`, `setPattern` на `bit32`, границы позиций, шаблоны |
 | [`06_httpServer.ctl`](../examples/14-legacyFoo/06_httpServer.ctl) | `httpServer`, `httpConnect`/`httpDisconnect`, `httpGet*`, `httpSet*`, шаблон ресурса, `GET`/`POST`, `dyn_string`/`dyn_mixed`, loopback |
+| [`07_dynamic_calls.ctl`](../examples/14-legacyFoo/07_dynamic_calls.ctl) | `callFunction` (встроенная, своя, `private`, `synchronized`, `void`, приведение типов, `isFunctionDefined`), `checkScript`, `evalScript`/`execScript`, restricted-режим и его обход через `callFunction` |
 
 Запуск раздела:
 
