@@ -68,15 +68,23 @@ dpSetWait(dpe + ":_original.._value", TRUE);   // CAME: _act_range = 1
 
 > ### ⛔ Жёсткое правило: нулевая дата
 >
-> Ни один `alertSet*()` не вызывается, пока не проверены **оба** условия:
-> `t != 0` **и** `At != 0`. Тревога с нулевой датой ломает связность сегментов
-> базы, и починить это задним числом нельзя. Проверки только `At != 0`
-> недостаточно: `setACount()` умеет сделать пустой `atime` ненулевым (см. ниже).
+> Ни один `alertSet*()` не вызывается, пока не проверено, что **время тревоги
+> ненулевое**. Для обычной тревоги это два условия сразу: `t != 0` **и**
+> `At != 0`. Тревога с нулевой датой ломает связность сегментов базы, и
+> починить это задним числом нельзя. Проверки только `At != 0` недостаточно:
+> `setACount()` умеет сделать пустой `atime` ненулевым (см. ниже).
 >
 > ```c
 > if (t != 0 && At != 0)
 >   alertSet(t, getACount(At), dpe + ":_alert_hdl.._comment", "текст");
 > ```
+>
+> В multi-instance адресация другая — пара `(t, count)`, отдельного `At` нет.
+> `t` берётся из `getCurrentTime()` для CAME или из `_alerts` для WENT и
+> квитирования, и перед вызовом проверяется `t != 0` / `at != 0`. `count = 0`
+> у CAME — это номер, а не дата, поэтому он допустим (см. раздел multi-instance).
+> У `alertSetTimed*()` отдельно проверяется `alerttime != 0`: нулевая метка
+> попадёт в запись как дата 1970 года.
 >
 > В уборке то же условие: если оно не выполнено, квитирование не делается, а
 > точка гасится через `_alert_hdl.._active = FALSE`.
@@ -147,7 +155,8 @@ dpSetWait(
 
 ```c
 time t = getCurrentTime();
-alertSet(t, 0, dpe + ":_alert_hdl.2._event", DPATTR_ALERTEVENT_CAME);   // 0 — номер задаём сами
+if (t != 0)
+  alertSet(t, 0, dpe + ":_alert_hdl.2._event", DPATTR_ALERTEVENT_CAME);  // 0 — номер задаём сами
 
 // дальше время и номер берём из _alerts, а не из своих переменных
 dyn_atime al;
@@ -161,7 +170,8 @@ for (int i = 1; i <= dynlen(al); i++)
   if (st == 1) { at = al[i]; count = c; }          // активная сторона CAME
 }
 
-alertSet(at, count, dpe + ":_alert_hdl.2._event", DPATTR_ALERTEVENT_WENT);  // 2
+if (at != 0)
+  alertSet(at, count, dpe + ":_alert_hdl.2._event", DPATTR_ALERTEVENT_WENT);  // 2
 ```
 
 Время и номер у WENT должны **точно совпадать** с CAME. Повторный WENT — no-op:
@@ -254,8 +264,9 @@ for (int i = 1; i <= dynlen(al); i++)
   if (oblig && acks == 0) { at = al[i]; count = c; }
 }
 
-alertSet(at, count, dpe + ":_alert_hdl.2._ack_state",
-         DPATTR_ACKTYPE_SINGLE);                    // DPATTR_ACKTYPE_SINGLE = 2
+if (at != 0)
+  alertSet(at, count, dpe + ":_alert_hdl.2._ack_state",
+           DPATTR_ACKTYPE_SINGLE);                  // DPATTR_ACKTYPE_SINGLE = 2
 ```
 
 Фильтр нужен именно такой: одного `_ack_oblig` недостаточно — он остаётся
@@ -291,8 +302,9 @@ alertSet(at, count, dpe + ":_alert_hdl.2._ack_state",
 сообщении**, что и событие:
 
 ```c
-alertSet(t, 0, dpe + ":_alert_hdl.2._event", DPATTR_ALERTEVENT_CAME,
-         t, 0, dpe + ":_alert_hdl.2._add_values", makeDynAnytype("SRC1", 42));
+if (t != 0)
+  alertSet(t, 0, dpe + ":_alert_hdl.2._event", DPATTR_ALERTEVENT_CAME,
+           t, 0, dpe + ":_alert_hdl.2._add_values", makeDynAnytype("SRC1", 42));
 ```
 
 Измерено: переданные значения сохраняются в экземпляре и читаются обратно через
@@ -558,7 +570,7 @@ int alertSetTimed(time alerttime, time t1, int count1, string dp1, anytype value
 
 ```c
 time acktime = getCurrentTime();
-if (t != 0 && At != 0)
+if (t != 0 && At != 0 && acktime != 0)
   alertSetTimed(acktime, t, getACount(At),
                 dpe + ":_alert_hdl.._ack_state", DPATTR_ACKTYPE_SINGLE);
 ```

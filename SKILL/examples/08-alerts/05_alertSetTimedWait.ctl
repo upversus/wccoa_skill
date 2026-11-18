@@ -205,7 +205,7 @@ main()
   dpdCheck("время тревоги t ненулевое", t != 0);
 
   int rcAck = -1;
-  if (t != 0 && At != 0)
+  if (t != 0 && At != 0 && acktime != 0)
   {
     rcAck = alertSetTimedWait(acktime, t, getACount(At),
                           dpe + ":_alert_hdl.._ack_state",
@@ -232,7 +232,7 @@ main()
   // --- запись комментария с меткой ----------------------------------------
   time ctime = getCurrentTime();
   int rcComment = -1;
-  if (t != 0 && At != 0)
+  if (t != 0 && At != 0 && ctime != 0)
   {
     rcComment = alertSetTimedWait(ctime, t, getACount(At),
                               dpe + ":_alert_hdl.._comment", "timed");
