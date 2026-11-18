@@ -127,6 +127,7 @@ PowerShell, сначала перейди в каталог скилла.
 | Собрать/разобрать JSON, работать с `mapping` и битами `bit32`/`bit64` | `docs/14-legacyFoo.md` | `14-legacyFoo/05_bits.ctl` |
 | Поднять HTTP-сервер из CTL и принять запрос | `docs/14-legacyFoo.md` | `14-legacyFoo/06_httpServer.ctl` |
 | Вызвать функцию по имени или выполнить текст скрипта в рантайме | `docs/14-legacyFoo.md` | `14-legacyFoo/07_dynamic_calls.ctl` |
+| Работать с динамическими массивами: методы `dyn_*` и глобальные `dyn*` | `docs/14-legacyFoo.md` | `14-legacyFoo/08_dyn_methods.ctl`, `14-legacyFoo/09_dyn_globals.ctl` |
 | Записать значение в устройство | `docs/04-write.md` | `11-address/10_address_modbus_write.ctl` |
 | Дождаться изменения значения | `docs/05-subscribe.md` | `05-subscribe/01_dpConnect.ctl` |
 | Подписаться на динамический список точек по SQL-условию | `docs/05-subscribe.md` | `05-subscribe/03_dpQueryConnectSingle.ctl` |
@@ -268,7 +269,7 @@ docs/                    справочник по операциям
   11-address.md            периферийный адрес, полный рецепт, таблица кодов
   12-map-to-ctl.md         от референса пользователя до работающей точки
   13-http.md               клиентские HTTP-функции net*
-  14-legacyFoo.md          JSON, mapping, биты, HTTP-сервер, динамические вызовы (legacyFoo)
+  14-legacyFoo.md          JSON, mapping, биты, HTTP-сервер, динамические вызовы, массивы (legacyFoo)
   15-influx.md             прямые HTTP-запросы к InfluxDB проекта (только чтение)
 examples/                проверенные примеры CTL
   00-scenario/             полный цикл и разведки по структуре типа

@@ -1,16 +1,17 @@
-# 14. JSON, mapping, биты, HTTP-сервер и динамические вызовы — legacyFoo
+# 14. JSON, mapping, биты, HTTP-сервер, динамические вызовы и массивы — legacyFoo
 
 Раздел назван `legacyFoo` по договорённости: сюда складываются функции CTL,
 не относящиеся к точкам данных, и раздел будет пополняться. Сейчас в нём
-пять тем: JSON в памяти (`jsonEncode`, `jsonDecode`), ассоциативные массивы
+шесть тем: JSON в памяти (`jsonEncode`, `jsonDecode`), ассоциативные массивы
 `mapping`, работа с битами `bit32`/`bit64`, HTTP-сервер (`httpServer()` и
-семейство `http*`) и динамические вызовы (`callFunction()`, `checkScript()`,
-`evalScript()`, `execScript()` с restricted-вариантами).
+семейство `http*`), динамические вызовы (`callFunction()`, `checkScript()`,
+`evalScript()`, `execScript()` с restricted-вариантами) и динамические
+массивы `dyn_*` (методы и глобальные функции).
 
 > ⛔ **JSON ≠ HTTP.** `jsonEncode()` и `jsonDecode()` работают только с памятью
 > CTL-скрипта и **не делают сетевых запросов**. HTTP — это `netGet()`,
 > `netPost()` и остальные `net*` из [13-http.md](13-http.md). Конвейер
-> «собрать JSON → отправить → разобрать ответ» описан в разделе 9.
+> «собрать JSON → отправить → разобрать ответ» описан в разделе 11.
 
 Источники (документация 3.21.6, проверка — CTL 3.18):
 
@@ -27,6 +28,8 @@
 * [evalScriptRestricted()](https://www.winccoa.com/documentation/WinCCOA/latest/de_AT/ControlE_R/evalScriptRestricted.html)
 * [execScript()](https://www.winccoa.com/documentation/WinCCOA/latest/de_AT/ControlE_R/execScript_3.html)
 * [execScriptRestricted()](https://www.winccoa.com/documentation/WinCCOA/latest/de_AT/ControlE_R/execScriptRestricted.html)
+* [Vector Methods](https://www.winccoa.com/documentation/WinCCOA/latest/en_US/Control_Grundlagen/vector_methods.html)
+* [Vector / Dynamic Arrays — Functions](https://www.winccoa.com/documentation/WinCCOA/latest/en_US/Control_Grundlagen/vector_methods.html)
 
 Проверено запуском: CTL 3.18, проект `<проект стенда>`. Всё, что помечено
 **«измерено»**, проверено на стенде и может расходиться с документацией.
@@ -753,7 +756,224 @@ int execScriptRestricted(string script[, dyn_string dollars[, <тип> <arg> ...
 Пример: [`07_dynamic_calls.ctl`](../examples/14-legacyFoo/07_dynamic_calls.ctl) —
 60 проверок, без точек данных и сети.
 
-## 7. Смешанные ключи
+## 7. Динамические массивы: методы `dyn_*`
+
+У динамических массивов два несовместимых способа работы, и путаница между
+ними — главный источник ошибок:
+
+| Способ | Индексация | Пример |
+| --- | --- | --- |
+| Прямой индекс `a[i]` | **с 1** | `a[1]` — первый элемент |
+| Методы `a.method()` | **с 0**, как у `vector` | `a.at(0)` — первый элемент |
+| Глобальные `dyn*(a, …)` | **с 1** | `dynContains(a, x)` → 1-based |
+
+Это измерено на 3.18. Частое утверждение «индексация `dyn_*` начинается
+с 1» верно только для прямого индекса и глобальных функций; методы `dyn_*`
+нумеруют элементы с 0, как `vector`.
+
+```c
+dyn_string a = makeDynString("b", "a", "b");
+DebugN(a[1]);        // "b"  - прямой индекс с 1
+DebugN(a.at(0));     // "b"  - метод с 0
+DebugN(a.at(1));     // "a"
+string bad = a[0];   // SEVERE 79 Index out of range, скрипт останавливается
+```
+
+### Методы, измеренные в 3.18
+
+| Метод | Что делает | Возврат |
+| --- | --- | --- |
+| `append(val)` | добавляет в конец | — |
+| `insertAt(idx, val)` | вставляет перед `idx`; `0` — в начало, `len` — в конец | — |
+| `replaceAt(idx, val)` | заменяет элемент `idx` | `0` |
+| `removeAt(idx)` | удаляет элемент `idx` | `0` |
+| `takeFirst()` | извлекает первый элемент | значение |
+| `takeLast()` | извлекает последний элемент | значение |
+| `takeAt(idx)` | извлекает элемент `idx` | значение |
+| `first()`, `last()` | ссылка на первый/последний элемент | ссылка |
+| `at(idx)` | ссылка на элемент `idx` | ссылка |
+| `contains(val)` | есть ли значение | `TRUE`/`FALSE` |
+| `indexOf(val)` | позиция первого вхождения | `0`-based индекс или `-1` |
+| `indexListOf(val)` | позиции всех вхождений | `vector<int>`, `0`-based |
+| `count()` | длина массива | `int` |
+| `clear()` | очищает массив | — |
+| `unique()` | удаляет дубликаты на месте | `0`, а не новая длина |
+
+`first()`, `last()` и `at()` возвращают **ссылку**, поэтому присваивание
+меняет сам массив:
+
+```c
+dyn_string a = makeDynString("b", "a", "b");
+a.at(1) = "Q";       // a = ["b", "Q", "b"]
+a.first() = "Z";     // a = ["Z", "Q", "b"]
+```
+
+`indexListOf()` возвращает `vector<int>`, а не `dyn_int`: у него `0`-based
+индексы и метод `count()`. Если вхождений нет, возвращается **пустой
+vector**, а не `-1`:
+
+```c
+dyn_string a = makeDynString("b", "a", "b");
+anytype hit = a.indexListOf("b");    // vector<int> [0, 2]
+anytype miss = a.indexListOf("zz");  // vector<int> 0 items, count() == 0
+int p = a.indexOf("zz");             // -1
+```
+
+`unique()` регистрозависим (`"b"` и `"B"` — разные значения), сохраняет
+порядок первых вхождений и возвращает `0`. Глобальная `dynUnique()`
+возвращает новую длину — см. следующий подраздел.
+
+### Границы: исключение, а не код возврата
+
+У методов нет `rc` для ошибки индекса. Выход за границу даёт
+`SEVERE 176` + `WARNING 79 "Index out of range"` и **останавливает поток**:
+
+| Вызов | Допустимый диапазон | За границей |
+| --- | --- | --- |
+| `at(idx)` | `0 … len-1` | исключение |
+| `insertAt(idx, val)` | `0 … len` | исключение |
+| `removeAt(idx)` | `0 … len-1` | исключение |
+| `takeAt(idx)` | `0 … len-1` | исключение |
+| `first()`/`last()` | массив не пуст | исключение на пустом |
+
+Поэтому проверяйте `count()` перед `at()`, `removeAt()` и `take*()`.
+`insertAt(len, val)` — легальный способ дописать в конец; `insertAt(len+1, …)`
+уже исключение.
+
+### Что не работает в 3.18
+
+* **`lastIndexOf()` отсутствует.** Вызов даёт `WARNING 72
+  "Function not defined, dyn_T::lastIndexOf"` и останавливает скрипт. У
+  `vector<int>` его тоже нет. Замена — `indexListOf()` и последний элемент
+  результата.
+* **Метод у временного результата.** `makeDynString(...).append("z")` и
+  `makeDynString(...).indexListOf(...)` дают `WARNING 73` (иногда дважды) и
+  `WARNING 76`, а возврат недостоверен (у `indexListOf` в этом случае
+  измерено `-1`). Сначала присвойте массив переменной, потом вызывайте метод.
+* **`dynlen(vector)`** возвращает `-1` и печатает `WARNING 77 "Expression is
+  not an array"`. Для `vector` используйте `count()`.
+
+### `vector` рядом
+
+`vector<T>` индексируется с `0` и поддерживает тот же набор методов
+(`append`, `at`, `count`, `indexOf`, …). Прямой индекс `v[0]` — первый
+элемент, `dynlen(v)` не работает. Массивы `dyn_*` и `vector` не
+взаимозаменяемы: приведение `(vector<int>)` в 3.18 запрещено синтаксически.
+
+Пример: [`08_dyn_methods.ctl`](../examples/14-legacyFoo/08_dyn_methods.ctl) —
+60 проверок, без точек данных и сети.
+
+## 8. Глобальные функции `dyn*`
+
+Классический синтаксис: массив передаётся первым аргументом, индексы —
+**с 1**. Функции меняют массив на месте; многие возвращают новую длину.
+
+### Создание и размер
+
+| Функция | Измерено в 3.18 |
+| --- | --- |
+| `makeDynInt(...)`, `makeDynString(...)`, `makeDynFloat(...)`, `makeDynBool(...)`, `makeDynTime(...)`, `makeDynAnytype(...)` | создают массив с переданными значениями; `makeDynInt()` и `makeDynString()` без аргументов дают пустой массив (`dynlen = 0`) |
+| `makeDynDynInt()`, `makeDynDynString()` | **не существуют** (`isFunctionDefined = FALSE`) |
+| `dynlen(arr)` | длина |
+| `dynClear(arr)` | очищает, `rc = 0` |
+
+Двумерный `dyn_dyn_*` собирается присваиванием строк:
+
+```c
+dyn_dyn_int dd;
+dd[1] = makeDynInt(3, 1, 5);
+dd[2] = makeDynInt(4, 2, 6);
+```
+
+### Изменение
+
+| Функция | Индексация | Возврат | Оговорка 3.18 |
+| --- | --- | --- | --- |
+| `dynAppend(arr, val)` | — | новая длина | `val` может быть массивом — дописываются все элементы |
+| `dynAppendConst(arr, val)` | — | новая длина | **меняет `arr`**, вопреки описанию «не меняющая исходный массив» |
+| `dynInsertAt(arr, val, pos)` | `pos` с 1 | новая длина | `pos = 0` или `pos > len` — добавление в конец |
+| `dynRemove(arr, pos)` | `pos` с 1 | `0` | `pos = 0` — `rc = -1`, массив не меняется |
+
+```c
+dyn_string s = makeDynString("a", "b", "c");
+dynInsertAt(s, "X", 1);   // ["X","a","b","c"]
+dynInsertAt(s, "Y", 0);   // ["X","a","b","c","Y"]  - 0 значит "в конец"
+dynRemove(s, 0);          // rc = -1, массив прежний
+```
+
+`dynAppendConst()` в 3.18 ведёт себя как `dynAppend()`: исходный массив
+становится длиннее. Не рассчитывайте на копию: если нужен отдельный массив,
+соберите его заново.
+
+### Поиск, сортировка, уникальность
+
+| Функция | Измерено |
+| --- | --- |
+| `dynContains(arr, val)` | 1-based индекс первого вхождения; `0` — нет |
+| `dynPatternMatch(mask, arr)` | подмассив по маске; регистрозависимо; порядок сохраняется; нет совпадений — пустой массив |
+| `dynSort(arr[, asc])` | сортирует на месте; по умолчанию и при `TRUE` — по возрастанию, при `FALSE` — по убыванию; возвращает длину |
+| `dynSortAsc(arr)` | по возрастанию; возвращает длину |
+| `dynUnique(arr)` | удаляет дубликаты на месте; возвращает **новую длину**; порядок первых вхождений; регистрозависимо |
+| `dynSortDesc()` | **не существует** (`isFunctionDefined = FALSE`) |
+
+Строки сортируются по кодам символов: `"A" < "a" < "b"`. Это не
+лексикографический порядок с игнорированием регистра.
+
+`dynUnique()` и метод `unique()` возвращают разное: глобальная функция —
+новую длину, метод — `0`.
+
+### Математика
+
+`dynSum`, `dynAvg`, `dynMin`, `dynMax` принимают числовые массивы.
+
+| Ситуация | Измерено |
+| --- | --- |
+| `dyn_int(4, 1, 7, 3)` | `sum = 15`, `avg = 3.75`, `min = 1`, `max = 7` |
+| пустой массив | все четыре функции возвращают `-1` |
+| `dynAvg()` для `dyn_int` | возвращает `float`, а не целое |
+
+`-1` для пустого массива — не код ошибки, а обычное значение: отличить его
+от настоящего результата `-1` нельзя. Проверяйте `dynlen()` до вызова.
+
+### Двумерные массивы
+
+| Функция | Измерено |
+| --- | --- |
+| `dynDynTurn(arr)` | транспонирует на месте; возвращает число строк результата |
+| `dynDynSort(arr, col)` | сортирует строки по столбцу; `col` с 1; возвращает число строк |
+| `dynDynSort(arr, 0)` | массив не меняется, ошибки нет — тихий отказ |
+
+```c
+dyn_dyn_int dd;
+dd[1] = makeDynInt(9, 1);
+dd[2] = makeDynInt(1, 9);
+dynDynSort(dd, 1);   // по первому столбцу: [1,9], [9,1]
+dynDynSort(dd, 2);   // по второму столбцу
+dynDynSort(dd, 0);   // ничего не делает, rc = число строк
+```
+
+### Методы и глобальные функции: соответствие
+
+| Задача | Метод (`0`-based) | Глобальная (`1`-based) |
+| --- | --- | --- |
+| длина | `count()` | `dynlen()` |
+| добавить | `append()` | `dynAppend()` |
+| вставить | `insertAt(idx, val)`, `idx` `0…len` | `dynInsertAt(arr, val, pos)`, `pos` `1…len`, `0` = в конец |
+| удалить | `removeAt(idx)` | `dynRemove(arr, pos)`, `pos = 0` → `-1` |
+| поиск | `indexOf()`, `contains()` | `dynContains()` |
+| все вхождения | `indexListOf()` → `vector<int>` | — |
+| дубликаты | `unique()` → `0` | `dynUnique()` → новая длина |
+| сортировка | — | `dynSort()`, `dynSortAsc()` |
+| сумма/среднее | — | `dynSum()`, `dynAvg()` |
+
+Правило простое: внутри метода индекс `0` — первый элемент; в глобальной
+функции `1` — первый элемент. `0` у `dynInsertAt` — это не «в начало», а
+«в конец».
+
+Пример: [`09_dyn_globals.ctl`](../examples/14-legacyFoo/09_dyn_globals.ctl) —
+58 проверок, без точек данных и сети.
+
+## 9. Смешанные ключи
 
 ```c
 mapping m;
@@ -768,7 +988,7 @@ DebugN(m["s"], m[1], m[2.5]);
 `jsonEncode()` такой `mapping` закодирует как `{}` — JSON требует строковых
 ключей.
 
-## 8. Порядок и позиционный доступ
+## 10. Порядок и позиционный доступ
 
 Порядок в `mapping` не гарантирован. `mappingKeys()`, `mappingGetKey()` и
 `mappingGetValue()` используют один и тот же внутренний порядок, поэтому
@@ -776,7 +996,7 @@ DebugN(m["s"], m[1], m[2.5]);
 не обязаны совпадать с порядком вставки. Не полагайтесь на порядок в
 протоколах и сравнениях — проверяйте ключи через `mappingHasKey()`.
 
-## 9. Типовой конвейер JSON + `net*`
+## 11. Типовой конвейер JSON + `net*`
 
 ```c
 mapping data = makeMapping("name", "test", "value", 42);
@@ -800,7 +1020,7 @@ if (rc == 0)
 `06_httpServer.ctl` поднимает HTTP-сервер и делает loopback-запросы на
 `127.0.0.1`; внешняя сеть ему не нужна.
 
-## 10. Измеренные оговорки CTL 3.18 — коротко
+## 12. Измеренные оговорки CTL 3.18 — коротко
 
 | Оговорка | Поведение 3.18 |
 | --- | --- |
@@ -834,8 +1054,28 @@ if (rc == 0)
 | restricted: запрещённая функция | `rc = 0`, `WARNING 38`, `retVal` прежний |
 | restricted: `callFunction` как обход | не работает |
 | restricted: вложенный restricted | в 3.18 запрещён (с 3.19 разрешён) |
+| прямой индекс `dyn_*` | с 1; `a[0]` — `SEVERE 79`, поток стоит |
+| методы `dyn_*` | индексы с 0, как у `vector` |
+| `lastIndexOf()` (метод) | **нет** у `dyn_*` и `vector`; `WARNING 72` |
+| `at`/`insertAt`/`removeAt` за границей | исключение `SEVERE 176` + `WARNING 79` |
+| `insertAt(idx)` | допустим `0…len`; `len` — в конец |
+| `indexListOf()` без совпадений | пустой `vector<int>`, не `-1` |
+| `indexOf()` без совпадений | `-1` |
+| `unique()` (метод) | возвращает `0`, массив меняется на месте |
+| `dynUnique()` | возвращает новую длину |
+| метод у временного результата | `WARNING 73`/`76`, возврат недостоверен |
+| `dynlen(vector)` | `-1` + `WARNING 77` |
+| `dynAppendConst()` | в 3.18 **меняет** исходный массив |
+| `dynInsertAt(..., 0)` или `pos > len` | добавление в конец |
+| `dynRemove(..., 0)` | `rc = -1`, массив не меняется |
+| `dynSort(arr, FALSE)` | по убыванию; `TRUE`/по умолчанию — по возрастанию |
+| `dynSortDesc()` | **нет** |
+| `dynSum/Avg/Min/Max` пустого | `-1` |
+| `dynAvg` для `dyn_int` | `float` |
+| `dynDynSort(arr, 0)` | тихий отказ: массив не меняется |
+| `makeDynDynInt/String()` | **нет**; `dyn_dyn_*` — присваиванием строк |
 
-## 11. Примеры
+## 13. Примеры
 
 | Файл | Что проверяет |
 | --- | --- |
@@ -846,6 +1086,8 @@ if (rc == 0)
 | [`05_bits.ctl`](../examples/14-legacyFoo/05_bits.ctl) | `getBit`, `setBit`, `checkPattern`, `setPattern` на `bit32`, границы позиций, шаблоны |
 | [`06_httpServer.ctl`](../examples/14-legacyFoo/06_httpServer.ctl) | `httpServer`, `httpConnect`/`httpDisconnect`, `httpGet*`, `httpSet*`, шаблон ресурса, `GET`/`POST`, `dyn_string`/`dyn_mixed`, loopback |
 | [`07_dynamic_calls.ctl`](../examples/14-legacyFoo/07_dynamic_calls.ctl) | `callFunction` (встроенная, своя, `private`, `synchronized`, `void`, приведение типов, `isFunctionDefined`), `checkScript`, `evalScript`/`execScript`, restricted-режим и его обход через `callFunction` |
+| [`08_dyn_methods.ctl`](../examples/14-legacyFoo/08_dyn_methods.ctl) | методы `dyn_*`: 0-based индексы, ссылки `first`/`at`, `insertAt`/`replaceAt`/`removeAt`, `take*`, `contains`/`indexOf`/`indexListOf`, `count`, `unique`, пустой массив, `vector` |
+| [`09_dyn_globals.ctl`](../examples/14-legacyFoo/09_dyn_globals.ctl) | глобальные `dyn*`: `makeDyn*`, `dynlen`/`dynClear`, `dynAppend`/`dynAppendConst`, `dynInsertAt`/`dynRemove`, `dynContains`, `dynPatternMatch`, `dynSort`/`dynSortAsc`, `dynUnique`, математика, `dynDynTurn`/`dynDynSort` |
 
 Запуск раздела:
 
