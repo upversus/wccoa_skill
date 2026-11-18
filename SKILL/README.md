@@ -43,6 +43,27 @@ $env:WCCOA_CTRL_EXE = 'C:\Sybcom\Kaskad\3.18\bin\WCCOActrl.exe'
 Папка `.git` не нужна, Git не требуется. `examples/verify.ps1` и
 `tools/modbus-sim` используют только PowerShell и Node.
 
+## Синхронизация установленной копии
+
+Когда скилл подключён к OpenCode, он лежит отдельной копией в каталоге скиллов,
+и правки в этой папке сами туда не попадают. Копия обновляется целиком:
+
+```powershell
+robocopy <путь>\SKILL $env:USERPROFILE\.config\opencode\skills\winccoa-ctl /MIR /NFL /NDL /NJH /NJS /R:1 /W:1
+```
+
+`/MIR` повторяет состояние источника, поэтому из установленной копии исчезает
+то, чего нет в `SKILL/`. После любой правки в `SKILL/` команду нужно повторить:
+иначе установленная копия останется старой — например, с уже снятым баннером
+«вне объёма» или без новых примеров.
+
+Быстрая проверка, что копии совпадают (числа должны быть равны):
+
+```powershell
+(Get-ChildItem . -Recurse -File).Count
+(Get-ChildItem $env:USERPROFILE\.config\opencode\skills\winccoa-ctl -Recurse -File).Count
+```
+
 ## Проверка после переноса
 
 Три команды, каждая сообщает о себе сама.
