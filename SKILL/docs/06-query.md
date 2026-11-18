@@ -1,4 +1,4 @@
-# 06. SQL-запросы и подписки по условию
+# 06. SQL-запросы: dpQuery и checkQuery
 
 > ## Объём этапа
 >
@@ -6,18 +6,20 @@
 > `dpQuery` — `examples/06-query/01_dpQuery.ctl`, 20/20;
 > `checkQuery` — `examples/06-query/02_checkQuery.ctl`, 14/14.
 >
-> **Вне объёма (8 функций):** `dpQueryConnectAll`, `dpQueryConnectSingle`,
-> `dpQueryDisconnect`, `dpGetAllAliases`, `dpAliases`, `dpGetAllDescriptions`,
-> `dpGetAllComments`, `getAllDpAliases`. Подписки на запросы исключены
-> отдельно; этап `05-subscribe` при этом реализован в части `dpConnect` и
-> `dpConnectUserData`. Справочные описания остаются ниже.
+> **Вне объёма этого раздела (5 функций):** `dpGetAllAliases`, `dpAliases`,
+> `dpGetAllDescriptions`, `dpGetAllComments`, `getAllDpAliases`.
+>
+> **Подписки на запросы — в [05-subscribe.md](05-subscribe.md):**
+> `dpQueryConnectSingle`, `dpQueryConnectAll`, `dpQueryDisconnect`. Они
+> измерены на стенде, примеры — `examples/05-subscribe/03…05`. Здесь осталась
+> только ссылка, без повторного описания.
 >
 > Функции поиска и фильтрации — `dpNames()`, `dpTypeName()`, `dpGetAlias()`,
 > `dpAliasToName()`, `dpGetAllDescriptions()` — разобраны на других этапах
 > ([01-create.md](01-create.md), [03-read.md](03-read.md)) и в объём работ входят.
 
-`dpQuery()` — разовый SQL-запрос. `dpQueryConnectAll()` / `dpQueryConnectSingle()` —
-подписка на всё, что подходит под условие запроса.
+`dpQuery()` — разовый SQL-запрос. Подписка на всё, что подходит под условие
+запроса, — это `dpQueryConnectSingle()` / `dpQueryConnectAll()` из раздела 05.
 
 ---
 
@@ -78,9 +80,9 @@ SELECT '_online.._value' FROM '*'
 **Что запрашивать нельзя.** Конфиги других менеджеров — например
 `_alert_hdl.._active` вернёт пустую строку типа `anytype`.
 
-> **Ограничение конфигов.** Подписки (connect-функции) работают только по конфигам,
-> управляемым Event Manager. Нельзя подписываться на: `_archive`, `_address`,
-> `_cmd_conv`, `_msg_conv`, `_smooth`.
+> **Ограничение конфигов.** И `dpQuery()`, и connect-функции работают только
+> по конфигам, управляемым Event Manager. Нельзя запрашивать `_archive`,
+> `_address`, `_cmd_conv`, `_msg_conv`, `_smooth`.
 
 **Особые случаи**
 
@@ -132,19 +134,21 @@ for (int z = 2; z <= dynlen(tab); z++) setValue(list1, "appendItem", tab[z][2]);
 
 ### Как выглядит результат на самом деле
 
-Документация говорит `tab[1][1]` «не используется». Фактически там не пусто,
-а строка служебного идентификатора:
+Измерено на CTL 3.18: `tab[1][1]` — **пустая строка** (`strlen = 0`), а имя
+строки — чистое имя DPE без аннотаций:
 
 ```
-tab[1][1] = " (Type: 0 Sys: 0 Dp: 0 El: 0 : 0..0)"
-tab[1][2] = ":_online.._value (Type: 0 Sys: 0 Dp: 0 El: 0 : _online.._value)"
-tab[2][1] = "System1:qryDp.fVal (Type: 622 Sys: 1 Dp: 1168 El: 2 : 0..0)"
+tab[1][1] = ""                       // strlen = 0
+tab[1][2] = ":_online.._value"
+tab[2][1] = "System1:qryDp.fVal"
 tab[2][2] = 42.5
 ```
 
-То есть в **имени строки** приходит аннотация `(Type: … Sys: … Dp: … El: …)`.
-Если разбирать результат по строкам, аннотацию надо отбрасывать — простое
-сравнение с именем точки не сработает.
+Раньше здесь было записано обратное — что в `tab[1][1]` и в имени строки лежит
+аннотация `(Type: … Sys: … Dp: … El: …)`. Это ошибка: так `DebugN` **печатает**
+элемент `anytype`, а не то, что лежит в строке. Проверка `strlen((string)tab[1][1])`
+даёт `0`, сравнение имени строки с именем DPE — точное. Та же структура и у
+`dpQueryConnect*()` (см. [05-subscribe.md, структура таблицы](05-subscribe.md#структура-таблицы)).
 
 ### Запрос к истории: TIMERANGE
 
@@ -239,190 +243,19 @@ dpQuery(q, tab);
 
 ---
 
-## dpQueryConnectAll()
+## Подписки на запросы
 
-**Синопсис**
+Три функции подписки перенесены в [05-subscribe.md](05-subscribe.md) — там их
+измеренное поведение, ограничения и примеры. Здесь только карта:
 
-```c
-int dpQueryConnectAll([class object,] string|function_ptr work, bool wantsanswer,
-                      anytype userData, string query [, int blockingTime]);
-```
-
-**Назначение.** Подписка на все элементы, подходящие под SQL-условие. При изменении
-Event Manager передаёт **все** подписанные элементы, даже если изменилось одно.
-
-**Параметры**
-
-| Имя | Тип CTRL | Обяз. | Описание | Значение для примера |
-| --- | --- | --- | --- | --- |
-| `object` | объект CTRL++ | нет | Экземпляр класса | — |
-| `work` | `string` / `function_ptr` | да | Колбэк. **Должен уметь обработать всю таблицу** | `"leaf"` |
-| `wantsanswer` | `bool` | да | `TRUE` — вызвать сразу при регистрации | `TRUE` |
-| `userData` | `anytype` | да | Данные в колбэк | `getUserName()` |
-| `query` | `string` | да | SQL `SELECT` | `"SELECT '_original.._value' FROM 'Motor1' WHERE _LEAF"` |
-| `blockingTime` | `int` | нет | Задержка вызова в мс, **≤ 32767**. `0` — не блокировать. Не задан — из `[different sections] queryHLBlockedTime` | `0` |
-
-**Форма колбэка**
-
-```c
-void workfunc(anytype userData, dyn_dyn_anytype result);
-```
-
-**Возврат.** `0`, `-1` при ошибке. **Возврат означает лишь, что сообщение CONNECT
-отправлено**, а не что запрос выполнился. Ошибка попадает в поток после выполнения —
-читать `getLastError()`.
-
-**Особенности поведения**
-
-* При изменении значения передаются **все** запрошенные значения, а не только
-  изменившееся. Ограничения вида `FIRST` / `LAST` в SQL-строке **не учитываются**.
-* `blockingTime` — не «блокировка», а накопление: колбэк вызывается не сразу, а через
-  указанное время, и открытые запросы передаются **одним** вызовом.
-* **Если в пределах `blockingTime` менялись разные точки в разное время (например,
-  три разные точки в три разных момента), таблица вернётся три раза.**
-* Создание и удаление необязательных конфигов вызывает колбэк **только** если у этих
-  конфигов доступен атрибут `_type`.
-* Если `FROM` затрагивает более **80 %** всех DPE — регистрируется обычная подписка
-  «на всё». Внутри колбэка будут использоваться только элементы, возвращённые SQL.
-* **Запрещено:** `SELECT ALL`, `TIMERANGE` (обрабатывается в Event Manager) и
-  `SELECT ALERT ...` — из-за производительности.
-* Ошибки: отсутствующие аргументы (в т.ч. у work-функции), неопределённая функция,
-  некорректные аргументы, неинициализированный `userData`.
-
-```c
-main()
-{
-  string query = "SELECT '_original.._value' FROM 'Motor1' WHERE _LEAF";
-  anytype userData = getUserName();
-  dpQueryConnectAll("leaf", TRUE, userData, query);
-}
-
-void leaf(anytype userData, dyn_dyn_anytype tab)
-{
-  // tab содержит ВСЮ таблицу, включая неизменившиеся значения
-  for (int z = 2; z <= dynlen(tab); z++) { /* ... */ }
-}
-```
-
-**Скрипт не создан — вне объёма.**
-
-**Типичные ошибки**
-
-* Обработка только «первой строки» — придёт вся таблица.
-* Ожидание вызова только на изменившиеся элементы — `All` отдаёт всё.
-* `SELECT ALERT` — убьёт производительность Event Manager.
-
----
-
-## dpQueryConnectSingle()
-
-**Синопсис**
-
-```c
-int dpQueryConnectSingle([class object,] string|function_ptr work, bool wantsanswer,
-                         anytype userData, string query [, int blockingTime]);
-```
-
-**Назначение.** Подписка по SQL-условию, но Event Manager отдаёт **каждое изменение
-отдельно** — в сообщении обычно один элемент.
-
-**Отличие от `dpQueryConnectAll()`**
-
-| | `All` | `Single` |
+| Функция | Что делает | Где смотреть |
 | --- | --- | --- |
-| Что приходит в колбэк | Вся таблица | Только изменившееся |
-| Несколько изменений одним `dpSet()` | Одна передача | Тоже одна передача |
-| `blockingTime` | Копится и передаётся трижды, если точки менялись в разное время | Копится в один вызов |
+| `dpQueryConnectSingle()` | подписка на `SELECT`; в колбэк приходят только изменившиеся строки | [05-subscribe.md](05-subscribe.md#dpqueryconnectsingle), `examples/05-subscribe/03_dpQueryConnectSingle.ctl` |
+| `dpQueryConnectAll()` | подписка на `SELECT`; в колбэк приходит вся текущая выборка | [05-subscribe.md](05-subscribe.md#dpqueryconnectall), `examples/05-subscribe/04_dpQueryConnectAll.ctl` |
+| `dpQueryDisconnect()` | снять подписку по паре «колбэк + `userData`» | [05-subscribe.md](05-subscribe.md#dpquerydisconnect), `examples/05-subscribe/05_dpQueryDisconnect.ctl` |
 
-```c
-main()
-{
-  string query = "SELECT '_online.._value' FROM 'ExampleDP*' WHERE _LEAF";
-  dpQueryConnectSingle("doIt", FALSE, "User Data", query);
-}
-
-void doIt(string userData, dyn_dyn_anytype ddaTab)
-{
-  for (int i = 2; i <= dynlen(ddaTab); i++)
-  {
-    string DPE = ddaTab[i][1];   // полный идентификатор DPE
-    float fNewValue = ddaTab[i][2];
-    DebugN(DPE, fNewValue);
-  }
-}
-```
-
-Вывод:
-
-```
-WCCOAui1:["System1:ExampleDP_Arg2."][100]
-WCCOAui1:["System1:ExampleDP_Result."][104]
-WCCOAui1:["System1:ExampleDP_Arg1."][16]
-```
-
-**Фильтр по типу точки данных:**
-
-```c
-dpQueryConnectSingle("doIt", FALSE, "ud",
-                     "SELECT '_online.._value' FROM '*' WHERE _DPT = \"ExampleDP_Float\"");
-```
-
-**Ограничение на структуры.** Элемент типа `struct` через `dpQueryConnectSingle()`
-**не запрашивается**; может прийти предупреждение:
-
-```
-WCCILevent (0), <TIMESTAMP>, IMPL, WARNING, 54, Unexpected state, DP: <DP-ID>:_original.._stime,
-  EvDpManager::getDpValueAttribut: no config
-```
-
-В структуре точки данных последний элемент должен быть **конкретным** типом
-(`int`, `string`, `float`, …), иначе он не будет виден подписке.
-
-**Структуры после обновления запроса.** При обновлении запроса конфига `_original`
-(например, созданы новые точки данных) в результате появятся и `struct`-элементы.
-Обычно структуры отфильтровываются на этапе создания запроса (пустые строки), но
-после обновления новые точки добавляются в таблицу вместе со структурами.
-
-**Скрипт не создан — вне объёма.**
-
----
-
-## dpQueryDisconnect()
-
-**Синопсис**
-
-```c
-int dpQueryDisconnect([class object,] string|function_ptr work, anytype userData);
-```
-
-Снимает подписку, созданную `dpQueryConnectAll()` или `dpQueryConnectSingle()`.
-
-> Как и `dpDisconnect()`, вызывается **только в том же скрипте**, где была
-> регистрация.
-
-```c
-main()
-{
-  string wf = "examplFunc";
-  anytype userData = getUserName();
-  dyn_dyn_anytype tab;
-  int blockTime = 0;
-  string query = "SELECT '_online.._value' FROM '*' WHERE _LEAF AND '_online.._userbit7' == 1";
-
-  int queryAll = dpQueryConnectAll(wf, TRUE, userData, query, blockTime);
-  DebugN("Registration successful?? ", queryAll);   // 0 = успех
-
-  int dq = dpQueryDisconnect(wf, userData);
-  DebugN("Unregister successful? ", dq);           // 0 = успех
-}
-
-void examplFunc(anytype userData, dyn_dyn_anytype tab)
-{
-  for (int z = 1; z <= dynlen(tab); z++) DebugN(tab[z]);
-}
-```
-
-**Скрипт не создан — вне объёма.**
+Структура таблицы у них та же, что у `dpQuery()`: строка 1 — заголовки,
+данные со строки 2, `tab[n][1]` — имя DPE, `tab[n][2..]` — значения.
 
 ---
 
@@ -543,9 +376,7 @@ int getAllDpAliases(dyn_string &dps, dyn_string &aliases);
 ```
 dpQuery()               ──▶ разовый SQL-SELECT
 checkQuery()            ──▶ проверка синтаксиса до выполнения
-dpQueryConnectAll()     ──▶ подписка, в колбэк приходит ВСЯ таблица
-dpQueryConnectSingle()  ──▶ подписка, в колбэк приходит ТОЛЬКО изменившееся
-dpQueryDisconnect()     ──▶ снять подписку (только в том же скрипте)
+подписки на запросы     ──▶ [05-subscribe.md](05-subscribe.md)
 
 dpGetAllAliases() / dpAliases()          ──▶ алиасы
 dpGetAllDescriptions()                   ──▶ описания

@@ -129,6 +129,7 @@ PowerShell, сначала перейди в каталог скилла.
 | Вызвать функцию по имени или выполнить текст скрипта в рантайме | `docs/14-legacyFoo.md` | `14-legacyFoo/07_dynamic_calls.ctl` |
 | Записать значение в устройство | `docs/04-write.md` | `11-address/10_address_modbus_write.ctl` |
 | Дождаться изменения значения | `docs/05-subscribe.md` | `05-subscribe/01_dpConnect.ctl` |
+| Подписаться на динамический список точек по SQL-условию | `docs/05-subscribe.md` | `05-subscribe/03_dpQueryConnectSingle.ctl` |
 | Создать или удалить точку и тип | `docs/01-create.md`, `docs/09-delete.md` | `01-create/`, `09-delete/` |
 | Настроить тревогу и работать с её атрибутами | `docs/08-alerts.md` | `08-alerts/01_alertGet.ctl` |
 | Приёмка на незнакомом устройстве | [playbooks/acceptance-test.md](playbooks/acceptance-test.md) | `11-address/25_acceptance_8bit.ctl` |

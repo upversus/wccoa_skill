@@ -3,7 +3,7 @@
 Все **86** функций категории *Datapoint Functions* из документации 3.21.6,
 сгруппированные по этапу жизненного цикла точки данных.
 
-**Примеров по этапам — 98.** Столько `.ctl` лежит в `examples/<этап>/`, без
+**Примеров по этапам — 101.** Столько `.ctl` лежит в `examples/<этап>/`, без
 каталогов `examples/exp/` и `examples/11-address/exp/` (там эксперименты),
 без файлов с именем на `_` (`_lib.ctl`, `_inventory.ctl`,
 `_trigger_dpConnect.ctl`) и без утилит, лежащих прямо в `examples/`
@@ -20,22 +20,23 @@ Get-ChildItem examples -Recurse -Filter *.ctl |
 
 Черновики `exp_*.ctl` внутри папок этапов (`00-scenario`, `11-address`) в счёт
 входят — они лежат наравне с примерами, всего их 6. Гейт `examples/verify.ps1
--All` прогоняет меньше — 64 из 86 подходящих скриптов: раздел `11-address` (17)
+-All` прогоняет меньше — 67 из 89 подходящих скриптов: раздел `11-address` (17)
 исключён, потому что требует подготовленного стенда, и запускается отдельно
 ключом `-IncludeAddress`; раздел `13-net` (4) исключён, потому что требует
 запущенного HTTP-тестового сервера, и запускается ключом `-IncludeNet`;
 раздел `15-influx` (1) исключён, потому что требует живой InfluxDB, и
 запускается ключом `-IncludeInflux`.
-Остальные 86 = 92 примера без черновиков плюс `cleanup_stand.ctl`, минус 7
+Остальные 89 = 95 примеров без черновиков плюс `cleanup_stand.ctl`, минус 7
 имён из списка `$exempt`.
 
 Прежние числа (54 обещанных, 52 написанных, 59 в разделе ниже) были
 оценкой плана, а не фактом, и разошлись между собой. Ориентироваться надо
 на список, а не на эти цифры.
 
-Вне объёма остались: этап 04 (запись в PLC), 8 функций этапа 06 (SQL, 10) —
+Вне объёма остались: этап 04 (запись в PLC), 5 функций этапа 06 (SQL, 7) —
 признаны избыточными, этап 10 (резервирование, 2) — непроверяемы без
-настроенного резервирования.
+настроенного резервирования. Три функции подписки на запросы из бывшего
+этапа 06 реализованы в разделе 05.
 
 Колонки:
 
@@ -62,7 +63,7 @@ Get-ChildItem examples -Recurse -Filter *.ctl |
 | Метрика | Значение |
 | --- | --- |
 | Всего функций в справочнике | 86 |
-| **Реализовано и проверено в CTL 3.18** | **67** (функций, не скриптов) |
+| **Реализовано и проверено в CTL 3.18** | **70** (функций, не скриптов) |
 | Из них устаревших | 6 (`dpIsLegalName`, `dpNameCheck`, `dpSetComment`, `dpGetComment`, `dpGetAllComments`, `getAllDpAliases`) |
 | **Исключено из объёма** | **7** (см. ниже) |
 | Исключено как нереализуемое | 2 (`isReduDp`, `getReduDp`) — см. раздел 10 |
@@ -174,7 +175,7 @@ Get-ChildItem examples -Recurse -Filter *.ctl |
 
 ## 05. Подписки — частично в объёме
 
-`dpConnect()` и `dpConnectUserData()` реализованы и проверены: примеры в
+Пять функций реализованы и проверены: примеры в
 [examples/05-subscribe/](../examples/05-subscribe/). `dpDisconnect()` и
 `dpDisconnectUserData()` на этом этапе не реализуются — сценарий смены подписки
 (сначала снять, затем подписаться на другие точки в том же скрипте) описан
@@ -184,22 +185,27 @@ Get-ChildItem examples -Recurse -Filter *.ctl |
 | --- | --- | --- |
 | `dpConnect()` | `int ([object,] work, [bool answer,] string dp1 [, …] \| dyn_string dp_list)` | ✅ реализовано (`01_dpConnect.ctl`) |
 | `dpConnectUserData()` | `int ([object,] work, anytype userData [, bool answer,] string dpe1 [, …])` | ✅ реализовано (`02_dpConnectUserData.ctl`) |
+| `dpQueryConnectSingle()` | `int ([object,] work, bool wantsanswer, anytype userData, string query [, int blockingTime])` | ✅ реализовано (`03_dpQueryConnectSingle.ctl`) |
+| `dpQueryConnectAll()` | `int ([object,] work, bool wantsanswer, anytype userData, string query [, int blockingTime])` | ✅ реализовано (`04_dpQueryConnectAll.ctl`) |
+| `dpQueryDisconnect()` | `int ([object,] work, anytype userData)` | ✅ реализовано (`05_dpQueryDisconnect.ctl`) |
 | `dpDisconnect()` | `int ([object,] work, string dp1 [, …])` | ⛔ не реализуется на этом этапе |
 | `dpDisconnectUserData()` | `int ([object,] work, anytype userData [, string dp1 [, …]])` | ⛔ не реализуется на этом этапе |
 
 ## 06. SQL-запросы — частично в объёме
 
-2 функции из 10 реализованы и проверены: `dpQuery()` (`06-query/01_dpQuery.ctl`)
-и `checkQuery()` (`06-query/02_checkQuery.ctl`). Остальные 8 не реализуются —
+2 функции из 7 реализованы и проверены: `dpQuery()` (`06-query/01_dpQuery.ctl`)
+и `checkQuery()` (`06-query/02_checkQuery.ctl`). Ещё 3 функции подписки на
+запросы (`dpQueryConnectSingle`, `dpQueryConnectAll`, `dpQueryDisconnect`)
+перенесены в раздел 05 и реализованы там. Остальные 5 не реализуются —
 справочное описание сохранено в [06-query.md](06-query.md).
 
 | Функция | Сигнатура | Статус |
 | --- | --- | --- |
 | `dpQuery()` | `int (string query, dyn_dyn_anytype &tab)` | ✅ реализовано (`01_dpQuery.ctl`) |
 | `checkQuery()` | `int (string aQuery)` | ✅ реализовано (`02_checkQuery.ctl`) |
-| `dpQueryConnectAll()` | `int ([object,] work, bool wantsanswer, anytype userData, string query [, int blockingTime])` | ⛔ не реализуется |
-| `dpQueryConnectSingle()` | `int ([object,] work, bool wantsanswer, anytype userData, string query [, int blockingTime])` | ⛔ не реализуется |
-| `dpQueryDisconnect()` | `int ([object,] work, anytype userData)` | ⛔ не реализуется |
+| `dpQueryConnectAll()` | `int ([object,] work, bool wantsanswer, anytype userData, string query [, int blockingTime])` | ✅ реализовано в разделе 05 (`04_dpQueryConnectAll.ctl`) |
+| `dpQueryConnectSingle()` | `int ([object,] work, bool wantsanswer, anytype userData, string query [, int blockingTime])` | ✅ реализовано в разделе 05 (`03_dpQueryConnectSingle.ctl`) |
+| `dpQueryDisconnect()` | `int ([object,] work, anytype userData)` | ✅ реализовано в разделе 05 (`05_dpQueryDisconnect.ctl`) |
 | `dpGetAllAliases()` | `int (dyn_string &dps, dyn_string &aliases [, string aliasFilter [, string dpeFilter]])` | ⛔ не реализуется |
 | `dpAliases()` | `dyn_string (string filter [, string dpeFilter])` | ⛔ не реализуется |
 | `dpGetAllDescriptions()` | `int (dyn_string &dps, dyn_string &descriptions [, string descriptionFilter [, string dpeFilter [, int mode]]])` | ⛔ не реализуется |
@@ -343,7 +349,7 @@ Get-ChildItem examples -Recurse -Filter *.ctl |
 restricted функция тоже даёт `rc = 0`, а `callFunction` запрет не обходит.
 Полный список — в [14-legacyFoo.md](14-legacyFoo.md).
 
-**Примеров по этапам — 98** (счёт в начале файла; `exp/` и служебные не входят). Вне объёма остались: `04-write`, 8 функций `06-query`, `dpGetAsynch`.
+**Примеров по этапам — 101** (счёт в начале файла; `exp/` и служебные не входят). Вне объёма остались: `04-write`, 5 функций `06-query`, `dpGetAsynch`. Подписки на запросы перенесены в раздел 05.
 
 ---
 
@@ -391,9 +397,10 @@ restricted функция тоже даёт `rc = 0`, а `callFunction` запр
 ## Итог на текущий момент
 
 **Все обещанные скрипты по этапам реализованы и проверены.** Полный гейт:
-`examples/verify.ps1 -All` прогоняет 64 скрипта, все 64 проходят, код возврата
+`examples/verify.ps1 -All` прогоняет 67 скриптов, все 67 проходят, код возврата
 0. Раздел 14 даёт 7 примеров и 220 проверок (20 + 25 + 25 + 18 + 24 + 48 + 60), сбоев нет.
-Раздел `08-alerts` даёт 10 примеров и 133 проверки.
+Раздел `08-alerts` даёт 10 примеров и 133 проверки. Раздел `05-subscribe` —
+5 примеров; три из них самодостаточные и дают 76 проверок (29 + 28 + 19).
 Раздел `11-address` в этот прогон не входит: он требует подготовленного
 окружения (эмулятор Modbus, OPC UA, карта адресов) и проверяется отдельно
 ключом `-IncludeAddress`. Раздел `13-net` тоже не входит: ему нужен
@@ -407,7 +414,7 @@ restricted функция тоже даёт `rc = 0`, а `callFunction` запр
 | `01-create` | 12 | 12 ✅ |
 | `02-config` | 12 | 12 ✅ |
 | `03-read` | 13 | 13 ✅ |
-| `05-subscribe` | 2 | 2 ✅ |
+| `05-subscribe` | 5 | 5 ✅ |
 | `06-query` | 2 | 2 ✅ |
 | `07-copy` | 3 | 3 ✅ |
 | `08-alerts` | 10 | 10 ✅ |
@@ -416,11 +423,11 @@ restricted функция тоже даёт `rc = 0`, а `callFunction` запр
 | `13-net` | 4 | 4 ✅ |
 | `14-legacyFoo` | 7 | 7 ✅ |
 | `15-influx` | 1 | 1 ✅ |
-| **Итого** | **92** | **92** ✅ |
+| **Итого** | **95** | **95** ✅ |
 
 Строка `Итого` считает примеры без черновиков `exp_*.ctl`, лежащих внутри папок
-этапов: 98 по правилу из начала файла минус 6 таких черновиков. Гейт проходит
-64 скрипта: 86 подходящих (92 примера плюс `cleanup_stand.ctl`, минус 7 имён
+этапов: 101 по правилу из начала файла минус 6 таких черновиков. Гейт проходит
+67 скриптов: 89 подходящих (95 примеров плюс `cleanup_stand.ctl`, минус 7 имён
 из списка `$exempt`) минус 17 скриптов раздела `11-address`, минус 4 скрипта
 раздела `13-net` и минус 1 скрипт раздела `15-influx`, которые требуют
 подготовленного окружения и по умолчанию не запускаются.

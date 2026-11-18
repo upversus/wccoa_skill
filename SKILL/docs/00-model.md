@@ -38,7 +38,7 @@ Datapoint Functions*. Локальная установка — **3.18**, про
 | Типа данных DPE `double` в CTL 3.18 **НЕТ** — `DPEL_DOUBLE` не определена | **✓ измерено**, скрипт не компилируется |
 | Логический узел OPC UA **переключается**; проверять надо переход, а не мгновенный срез | **✓ измерено** — наивная проверка значения даёт ложный провал |
 | `dpGetAllConfigs("dp.:")` возвращает 21 конфиг элемента — удобнее `dpGetAllAttributes()` | **✓ измерено** |
-| Состав атрибутов `_alert_hdl`, коды `DPEL_*`, поведение `dpQueryConnectAll` | из документации, на стенде не проверялось |
+| Состав атрибутов `_alert_hdl`, коды `DPEL_*` | из документации, на стенде не проверялось (поведение `dpQueryConnectAll` измерено — см. [05-subscribe.md](05-subscribe.md#dpqueryconnectall)) |
 
 Скрипты, которыми всё это измерено, лежат в
 [`examples/00-scenario/`](../examples/00-scenario/) — это не демонстрация
@@ -390,8 +390,8 @@ if (rc != 0 || dynlen(getLastError()) > 0) {
 | [02-config.md](02-config.md) | Конфиги и атрибуты: `dpSet`, алиасы, единицы, форматы, описания |
 | [03-read.md](03-read.md) | Чтение: `dpGet`, асинхронное чтение, типы, идентификаторы |
 | [04-write.md](04-write.md) | Запись мимо Event Manager и ожидание значения |
-| [05-subscribe.md](05-subscribe.md) | `dpConnect` и колбэки |
-| [06-query.md](06-query.md) | SQL-запросы и подписки по запросу |
+| [05-subscribe.md](05-subscribe.md) | `dpConnect`, колбэки и подписки по SQL-запросу |
+| [06-query.md](06-query.md) | Разовые SQL-запросы: `dpQuery`, `checkQuery` |
 | [07-copy.md](07-copy.md) | Клонирование `dpCopy`, группы |
 | [08-alerts.md](08-alerts.md) | Атрибуты тревог |
 | [09-delete.md](09-delete.md) | Удаление и смена типа |
