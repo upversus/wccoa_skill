@@ -952,6 +952,9 @@ _alert_hdl.<N>._ack_state                ──▶ квитирование эк
 
 getAIdentifier() / setAIdentifier()      ──▶ имя точки данных в atime
 setACount() / getACount()                ──▶ номер тревоги в atime
+
+alertConnect() / alertDisconnect()       ──▶ подписка на события тревог
+                                             ([05-subscribe.md#alertconnect](05-subscribe.md#alertconnect))
 ```
 
 Чтение атрибутов `_alert_hdl` обычным `dpGet()` — [03-read.md](03-read.md#читаемые-атрибуты-_alert_hdl).

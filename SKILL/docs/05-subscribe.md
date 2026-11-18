@@ -1,9 +1,10 @@
 # 05. Подписки на изменения: dpConnect и подписки по запросу
 
 > ℹ️ **Раздел в объёме в части `dpConnect`, `dpConnectUserData`,
-> `dpQueryConnectSingle`, `dpQueryConnectAll`, `dpQueryDisconnect`.** Пять
-> примеров написаны и проверены на стенде 3.18. `dpDisconnect()` и
-> `dpDisconnectUserData()` на этом этапе **не реализуются**: их описание ниже
+> `dpQueryConnectSingle`, `dpQueryConnectAll`, `dpQueryDisconnect`,
+> `alertConnect` и `alertDisconnect`.** Шесть примеров написаны и проверены на
+> стенде 3.18. `dpDisconnect()` и `dpDisconnectUserData()` на этом этапе
+> **не реализуются**: их описание ниже
 > остаётся справочным, а сценарий смены подписки описан словами.
 >
 > Ограничение, которое надо знать заранее: `maxConnectMessageSize` (см.
@@ -30,7 +31,7 @@ Stop-Process -Id <PID> -Force
 Ожидаемая сводка — `--- PASS= 11  FAIL= 0 ---` для `01_dpConnect.ctl` и
 `--- PASS= 15  FAIL= 0 ---` для `02_dpConnectUserData.ctl`.
 
-Примеры 03–05 устроены иначе: они **самодостаточны**, сами пишут значения,
+Примеры 03–06 устроены иначе: они **самодостаточны**, сами пишут значения,
 дожидаются колбэков в `delay()` и завершаются со сводкой. Второй процесс им не
 нужен:
 
@@ -38,16 +39,17 @@ Stop-Process -Id <PID> -Force
 .\run-ctl.ps1 -Script .\05-subscribe\03_dpQueryConnectSingle.ctl -Num 200
 .\run-ctl.ps1 -Script .\05-subscribe\04_dpQueryConnectAll.ctl      -Num 200
 .\run-ctl.ps1 -Script .\05-subscribe\05_dpQueryDisconnect.ctl      -Num 200
+.\run-ctl.ps1 -Script .\05-subscribe\06_alertConnect.ctl           -Num 200
 ```
 
 Ожидаемые сводки: `--- PASS= 29  FAIL= 0 ---`, `--- PASS= 28  FAIL= 0 ---`,
-`--- PASS= 19  FAIL= 0 ---`.
+`--- PASS= 19  FAIL= 0 ---`, `--- PASS= 65  FAIL= 0 ---`.
 
 Примеры 01 и 02 делят одну точку `dpdemo_sub` и при старте пересоздают её,
 поэтому запускать их **по одному**: если держать оба одновременно, второй
 удалит точку, на которую подписан первый, и подписка умрёт молча. Примеры
-03–05 используют свои точки `qsub_*`, `qall_*`, `qdis_*` и с ними не
-конфликтуют.
+03–06 используют свои точки `qsub_*`, `qall_*`, `qdis_*`, `qalert05_*` и с ними
+не конфликтуют.
 
 `-Num` — номер менеджера скрипта. `0` означает автовыбор номера Data
 Manager'ом; у двух одновременно запущенных скриптов номера обязаны различаться.
@@ -124,9 +126,13 @@ Datapoint function, Waiting Control function, Connection Functions.
   `PARAM,SEVERE, 175, this request cannot address more than one system, ...`
 * **Если конфиг, на который подписались, потом изменён через PARA — подписка
   перестаёт работать.** Конфиг надо перевыбрать в редакторе скрипта.
-* **Не все атрибуты `_alert_hdl` доступны.** Через `dpConnect()` доступны только
-  `_prior`, `_act_state_color`, `_act_state_fore_color`, `_act_state_font_style`,
-  `_text` и `panel`. Остальные — через `alertConnect()`.
+* **Не все атрибуты `_alert_hdl` одинаково доступны.** Через `dpConnect()`
+  доступны `_prior`, `_act_state_color`, `_act_state_fore_color`,
+  `_act_state_font_style`, `_text` и `panel`, а также `_act_state` и
+  `_act_range` (измерено). Через `alertConnect()` приходят атрибуты экземпляра
+  тревоги: `_text`, `_visible`, `_ack_state`, `_prior` и другие, но **не**
+  `_act_state` и `_act_range`. Подробно — в
+  [разделе alertConnect()](#alertconnect).
 * **`_status` vs `_value`.** Атрибут `_status` вызывает колбэк **только при
   изменении** статуса. Атрибут `_value` — **на каждую** запись, независимо от того,
   изменилось значение или нет.
@@ -564,6 +570,24 @@ if (rc != 0 || dynlen(err) > 0)
 `FROM` — шаблон имени в **одинарных** кавычках, тип в `_DPT` — в **двойных**
 (внутри строки CTL они экранируются). Атрибуты в `WHERE` — в одинарных кавычках.
 
+### Подписка на тревоги
+
+`_alert_hdl.._act_state` — обычный конфиг-атрибут, поэтому его можно запросить
+подпиской и отфильтровать точки по классу тревоги ещё в `WHERE`:
+
+```c
+string q =
+  "SELECT '_alert_hdl.._act_state' FROM 'Pump*' " +
+  "WHERE '_alert_hdl.._class' = \"System1:alert.\"";
+dpQueryConnectSingle("onAlert", FALSE, "A", q);
+```
+
+Измерено: в выборку попадают только DPE с настроенной тревогой этого класса;
+CAME даёт `_act_state = 1`, WENT — `3` (у `dpConnect()` те же значения). Так
+одна подписка заменяет `alertConnect()` с ручной фильтрацией в колбэке и не
+требует перечислять точки. Подробнее — в разделе
+[`alertConnect()` или `dpQueryConnectSingle()`](#alertconnect-или-dpqueryconnectsingle).
+
 **Пример:** [examples/05-subscribe/03_dpQueryConnectSingle.ctl](../examples/05-subscribe/03_dpQueryConnectSingle.ctl)
 — 29 проверок: снимок при регистрации, одна и две изменившиеся строки, новая
 точка, удаление, `WHERE`, `dpQueryDisconnect()`.
@@ -703,7 +727,11 @@ int dpQueryDisconnect([class object,] string|function_ptr work, anytype userData
 * Если `FROM` затрагивает более **80 %** всех DPE, регистрируется обычная
   подписка «на всё»; в колбэке остаются только строки, подошедшие под SQL.
 * В подписке запрещены `SELECT ALL`, `TIMERANGE` и `SELECT ALERT` — из-за
-  производительности Event Manager.
+  производительности Event Manager. **Проверено на 3.18:** `SELECT ALERT`
+  принимается (`rc = 0`) и присылает события тревог; см.
+  [«`alertConnect()` или `dpQueryConnectSingle()`»](#alertconnect-или-dpqueryconnectsingle).
+  Фактическую нагрузку на Event Manager на стенде не измеряли, поэтому для
+  больших проектов ограничение из документации остаётся ориентиром.
 * `FIRST` / `LAST` в запросе подписки не учитываются.
 * Подписка работает только по конфигам, управляемым Event Manager: нельзя
   `_archive`, `_address`, `_cmd_conv`, `_msg_conv`, `_smooth`.
@@ -810,6 +838,225 @@ startCalc(anytype userData, string dp1, int d)
 
 ---
 
+## alertConnect()
+
+**Синопсис**
+
+```c
+int alertConnect([class object,] string|function_ptr work, [bool answer,]
+                 string alert1 [, string alert2 ...] | dyn_string alert_list);
+```
+
+**Назначение.** Регистрирует `work` для вызова при появлении, изменении и уходе
+экземпляров тревог. Это не «`dpConnect()` для тревог»: `dpConnect()` следит за
+атрибутами перечисленных точек, а `alertConnect()` — за атрибутом тревоги
+**во всех точках системы** (измерено, см. ниже).
+
+**Параметры**
+
+| Имя | Тип CTRL | Обяз. | Описание |
+| --- | --- | --- | --- |
+| `object` | объект CTRL++ | нет | Экземпляр класса, если `work` — его метод. Только файловый или глобальный scope |
+| `work` | `string` / `function_ptr` | да | Имя функции или указатель на метод (`obj.method`) |
+| `answer` | `bool` | нет | `TRUE` (по умолчанию) — сразу вызвать с текущими тревогами; `FALSE` — только новые события |
+| `alert1`, `alert2`, … | `string` | да | Атрибуты `_alert_hdl`, например `"Pump1.err:_alert_hdl.._text"` |
+| `alert_list` | `dyn_string` | форма 2 | Список атрибутов; в колбэк приходят `dyn_string` и `dyn_anytype` |
+
+**Возврат.** `0` — успех, `-1` — ошибка; причина в `getLastError()`.
+
+### Область подписки — вся система
+
+Измерено на 3.18. Подписка, оформленная как
+`alertConnect("cb", FALSE, "dptest_a.b1:_alert_hdl.._text")`, вызвала колбэк на
+CAME **другой** точки `dptest_b.b1`, к которой никакого `alertConnect()` не
+было. То же с глобальной формой без DPE (`":_alert_hdl.._text"`): при
+`answer=TRUE` колбэк получил текущие тревоги всех точек проекта
+(`ExampleDP_Arg1`, `ExampleDP_AlertHdl1`, служебные точки лицензии).
+
+Документация 3.21 это подтверждает: «In contrast to `dpConnect()`,
+`alertConnect()` does not connect with alert handling attributes of individual
+datapoint elements, but rather with the appropriate attributes of all datapoint
+elements».
+
+Практические следствия:
+
+* DPE в строке атрибута нужен только для проверки существования — фильтром он
+  не является. Отбирать события приходится в колбэке по имени пришедшего
+  атрибута (`strpos(name, "Pump")`).
+* В колбэк приходит **полный** адрес `System1:Pump1.err:_alert_hdl.._text`, а
+  не то, что было в строке подписки.
+* `answer=TRUE` по умолчанию — это не «одно текущее значение», а вызов по
+  каждой активной тревоге системы. На стенде это было пять вызовов подряд.
+
+### Форма колбэка
+
+```c
+void work(time t, int count, string alert1, <type1> var1
+          [, string alert2, <type2> var2 ...]);
+```
+
+| Параметр | Смысл |
+| --- | --- |
+| `t` | время тревоги |
+| `count` | счётчик тревог с общим временем; на одиночной тревоге измерен `0` |
+| `alert1`, `var1`, … | пары «полное имя атрибута — значение», по одной на каждый атрибут подписки |
+
+Для формы с `dyn_string` колбэк принимает `(time t, int count, dyn_string a,
+dyn_anytype v)`: одно событие — один вызов, в массивах сразу все имена и
+значения.
+
+```c
+// две строки в подписке -> шесть аргументов в колбэке
+void cbTwo(time t, int count, string n1, anytype v1, string n2, anytype v2)
+{
+  DebugN(t, count, n1, v1, n2, v2);
+}
+alertConnect("cbTwo", FALSE,
+             "Pump1.err:_alert_hdl.._text",
+             "Pump1.err:_alert_hdl.._visible");
+// -> System1:Pump1.err:_alert_hdl.._text    ALARM
+// -> System1:Pump1.err:_alert_hdl.._visible TRUE
+```
+
+`_text` — многоязычная строка (`langString`). Если объявить параметр как
+`string`, придёт текст на текущем языке; если как `anytype` — структура
+`LANG:… "ALARM"`.
+
+### Какие атрибуты дают события
+
+Подписка на любой существующий атрибут `_alert_hdl` возвращает `0`. События
+приходят не по всем:
+
+| Атрибуты | Поведение |
+| --- | --- |
+| `_text`, `_visible`, `_value`, `_prior`, `_ack_oblig`, `_comment`, `_add_values`, `_ack_state`, `_direction`, `_abbr`, `_class` | приходят на CAME, WENT и квитирование |
+| `_act_state`, `_act_range`, `_alerts` | принимаются (`0`), но событий не дают: это атрибуты **элемента**, а не экземпляра тревоги |
+| `_active`, `_text0`, `_text1`, `_type`, `_orig_hdl` | принимаются (`0`), но изменение конфигурации события не вызывает (измерено на `_text1`) |
+| несуществующий атрибут (`_time`, `_nope`) | `-1`, `WARNING 71 "DP does not exist"` |
+
+Отсюда главная практическая поправка: распространённый пример с
+`_alert_hdl.._act_state` в `alertConnect()` **не работает** — вызов вернёт `0`,
+но колбэк не сработает ни разу. Состояние тревоги отслеживают через
+`_ack_state`, `_text`, `_visible`, а `_act_state` читают через `dpGet()` или
+`dpConnect()`.
+
+### `answer`
+
+* `TRUE` (по умолчанию) — сразу после регистрации колбэк вызывается с
+  текущими значениями **всех** активных тревог системы.
+* `FALSE` — только новые события. Это то, что нужно в большинстве случаев.
+
+### `alertDisconnect()`
+
+```c
+int alertDisconnect([class object,] string|function_ptr work,
+                    string alert1 [, string alert2 ...] | dyn_string alert_list);
+```
+
+Снимает подписку по паре «`work` + те же атрибуты». Возврат `0`/`-1`.
+
+* **Параметра `answer` у `alertDisconnect()` нет.** Лишний `bool` на месте
+  третьего аргумента воспринимается как имя атрибута: `-1`. Причина попадает
+  в журнал (`WARNING 71 "DP does not exist"`), а `getLastError()` в замере
+  остался **пустым** — проверять надо по коду возврата. Это отличается от
+  `dpConnect()`/`dpDisconnect()`, где `answer` есть у обеих функций.
+* Повторная отписка уже снятой пары даёт `-1` с **пустым** `getLastError()`.
+* Отписка несуществующего колбэка даёт `-1` и `WARNING 72 "Function not
+  defined"`.
+* Пока жива хотя бы одна подписка, менеджер CTRL не завершается — как у
+  `dpConnect()`. В конце скрипта нужен явный `alertDisconnect()`.
+
+### Повторная подписка дублирует колбэк
+
+`alertConnect()` с теми же `work` и атрибутом не заменяет прежнюю подписку, а
+добавляет ещё одну: одно событие даёт два вызова. Одна `alertDisconnect()`
+снимает ровно одну. Если подписка оформлена в функции, которую вызывают
+несколько раз, колбэк будет множиться.
+
+### Объектная форма
+
+```c
+class Watcher
+{
+  public int n;
+  public void onText(time t, int count, string a, anytype v) { n++; }
+};
+Watcher w;                                   // файловый scope обязателен
+
+alertConnect(w, w.onText, FALSE, "Pump1.err:_alert_hdl.._text");
+alertDisconnect(w, w.onText, "Pump1.err:_alert_hdl.._text");
+```
+
+* Нужен **указатель на метод** (`w.onText`). Имя метода строкой
+  (`alertConnect(w, "onText", …)`) даёт `-1` и `WARNING 72 "Function not
+  defined"`.
+* Для глобальной функции наоборот: строка `"cb"` работает, а `function_ptr` из
+  имени функции в CTL 3.18 не собрать (`&cb` — синтаксическая ошибка,
+  приведение запрещено).
+* Экземпляр обязан быть в файловом или глобальном scope.
+
+### `alertConnect()` или `dpQueryConnectSingle()`
+
+`alertConnect()` не умеет фильтровать: он отдаёт поток событий по атрибуту от
+всех точек, а отбор остаётся колбэку. Документация 3.21 прямо рекомендует для
+шаблонов и фильтров использовать `dpQueryConnectSingle()`: «If you want to use
+a DPE pattern or filter, for performance reasons use a `dpQueryConnectSingle()`
+method with a suitable filter».
+
+**Правило.** Нужен конкретный набор точек по шаблону (все тревоги класса
+`System1:alert.`, приоритет выше заданного, маска имён) — берут
+`dpQueryConnectSingle()`. Нужен поток событий тревог без отбора (журналирование,
+пересчёт сводки) — берут `alertConnect()`. Сотни `alertConnect()` на отдельные
+DPE не нужны: одна подписка на запрос дешевле и фильтрует на стороне Event
+Manager.
+
+Измерено на 3.18 (блок 9 примера
+[06_alertConnect.ctl](../examples/05-subscribe/06_alertConnect.ctl)): запрос
+
+```c
+string query =
+  "SELECT '_alert_hdl.._act_state' FROM 'qfilter*' " +
+  "WHERE '_alert_hdl.._class' = \"System1:alert.\"";
+dpQueryConnectSingle("onAlert", FALSE, "A", query);
+```
+
+* в выборку попала только точка с настроенной тревогой этого класса, точка без
+  `_alert_hdl` не попала;
+* CAME на ней дал вызов с `_alert_hdl.._act_state = 1`, WENT — `3`;
+* класс тревоги — обычный конфиг-атрибут, поэтому он работает и в `SELECT`,
+  и в `WHERE`; `_alert_hdl.._prior` читается (`dpGet` дал `60` для
+  `System1:alert.`), но **записать** его нельзя: `dpSetTimedWait` вернул `-1`
+  (приоритет задаётся классом).
+
+Форма `SELECT ALERT` в подписке на 3.18 тоже **работает**, хотя документация
+3.21.6 относит её к запрещённым (см. таблицу ограничений выше):
+
+```c
+string qa = "SELECT ALERT '_alert_hdl.._text', '_alert_hdl.._value' " +
+            "FROM 'qfilter*' WHERE '_alert_hdl.._class' = \"System1:alert.\"";
+// rc = 0, на CAME: [DPE, время, langString "ALARM", TRUE]
+```
+
+Колонки идут в порядке `SELECT`, но первая колонка — DPE, затем служебное время
+тревоги, затем запрошенные атрибуты; строка заголовка, как и у обычного
+`SELECT`, приходит первой. Проверяйте `SELECT ALERT` на своём патче перед
+использованием: поведение может отличаться между версиями.
+
+Плата за `dpQueryConnectSingle()` — пакетная доставка: результат приходит
+целиком на изменение выборки, с задержкой `blockingTime`, а не мгновенным
+событием на каждое изменение. Ещё одна ловушка — уход из `WHERE`: у `Single`
+вызова не будет (см. таблицы выше), поэтому «сколько тревог активно сейчас» по
+такой подписке не посчитать.
+
+### Пример
+
+[examples/05-subscribe/06_alertConnect.ctl](../examples/05-subscribe/06_alertConnect.ctl)
+— две временные точки, 65 проверок: область подписки, `answer`, пары
+«имя-значение», `dyn_string`, квитирование, дубликаты, объектная форма,
+молчащие атрибуты и сравнение с подпиской на запрос по классу тревоги.
+
+---
+
 ## Связи
 
 ```
@@ -821,6 +1068,9 @@ dpDisconnect() / dpDisconnectUserData() ─▶ снять подписку (то
 dpQueryConnectSingle() ─▶ SQL-запрос, в колбэк только изменившиеся строки
 dpQueryConnectAll()    ─▶ SQL-запрос, в колбэк вся текущая выборка
 dpQueryDisconnect()    ─▶ снять подписку по паре "колбэк + userData"
+
+alertConnect()    ─▶ события тревог ВСЕХ точек (фильтр только в колбэке)
+alertDisconnect() ─▶ снять подписку (параметра answer нет)
 
 dpWaitForValue() ─▶ разовая блокирующая подписка ([04-write.md](04-write.md#dpWaitForValue))
 ```
