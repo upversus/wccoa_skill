@@ -9,6 +9,9 @@
 это режим `_alert_hdl`, а не функция API, поэтому своего примера в наборе у него
 нет и счётчик функций раздела он не меняет.
 
+Классы тревог `_AlertClass` — тоже конфиг, а не функция API; у них есть
+[свой подраздел](#классы-тревог-_alertclass) и пример `11_alertClass.ctl`.
+
 Запуск одного примера и всего раздела:
 
 ```powershell
@@ -61,10 +64,11 @@ dpSetWait(dpe + ":_original.._value", TRUE);   // CAME: _act_range = 1
 
 Класс фиксирован: `System1:alert.` (`_ack_type = 3`,
 `ACKNOWLEDGEMENT_PAIR`; `_archive = TRUE`, `_archive_time = 31536000` — год).
-Создать собственный класс тревоги скриптом на стенде не удалось: точка
-`_AlertClass` создаётся, но конфиг `_alert_class` не появляется, а запись
-`_ack_type` даёт `PARAM,WARNING,9`. Если класса `System1:alert.` в проекте нет,
-примеры печатают `SKIP` и не считают это ни `PASS`, ни `FAIL`.
+Свой класс создаётся скриптом, но порядок записи обязателен: сначала
+`_alert_class.._type = DPCONFIG_ALERT_CLASS`, потом остальные атрибуты —
+[Классы тревог `_AlertClass`](#классы-тревог-_alertclass). Если класса
+`System1:alert.` в проекте нет, примеры печатают `SKIP` и не считают это ни
+`PASS`, ни `FAIL`.
 
 > ### ⛔ Жёсткое правило: нулевая дата
 >
@@ -386,6 +390,175 @@ if (t != 0)
 > **Цена проверки.** Для режима нужен собственный тип с `BIT32`; в набор
 > `examples/08-alerts/` он не входит, чтобы не менять счётчики раздела. Всё
 > перечисленное измерено на временной точке, точка и тип после проверки удалены.
+
+---
+
+## Классы тревог `_AlertClass`
+
+Класс — часть конфига диапазона (`_alert_hdl.<N>._class`). Он задаёт приоритет
+тревоги, короткое обозначение, режим квитирования и архивность. Классы — это
+**обычные точки данных** типа `_AlertClass`, а не элемент внутри точки:
+`dpTypeGet("_AlertClass")` отдаёт только системный тип, сами классы ищутся как
+точки.
+
+```c
+dyn_string classes = dpNames("*", "_AlertClass");
+// System1:advanceAlarm, System1:alert, System1:information, System1:warning, ...
+```
+
+### Штатные классы
+
+Семь классов есть в каждом проекте. Приоритеты совпали с документацией 3.21,
+режимы квитирования и сокращения измерены на стенде:
+
+| Класс | `_prior` | `_abbr` | `_ack_type` | Квитирование |
+| --- | --- | --- | --- | --- |
+| `System1:advanceAlarm.` | 20 | `aA` | 3 | пара CAME/WENT |
+| `System1:alert.` | 60 | `A` | 3 | пара CAME/WENT |
+| `System1:warning.` | 40 | `W` | 3 | пара CAME/WENT |
+| `System1:danger.` | 80 | `Da` | 3 | пара CAME/WENT |
+| `System1:disturbance.` | 100 | `Di` | 3 | пара CAME/WENT |
+| `System1:scAlarm.` | 90 | `ALM` | 0 | квитирование удаляет |
+| `System1:information.` | 10 | `I` | 1 | **не квитируется** |
+
+Это не весь список проекта: на стенде было 20 классов — ещё 13 `System1:S7_*`,
+созданных конфигурацией S7 (приоритеты 16…230, режимы 1, 2 и 3). Набор классов
+зависит от проекта, поэтому перед выбором класса его смотрят, а не угадывают.
+
+### Режимы квитирования (`_ack_type`)
+
+| Значение | Константа | По документации 3.21 | Что видно в CTL |
+| --- | --- | --- | --- |
+| 0 | `DPATTR_ACK_DELETES` | Acknowledge deletes | `_act_state` 1 → 0 сразу после квитирования |
+| 1 | `DPATTR_ACK_NONE` | Not acknowledgeable | `_act_state = 2` сразу, квитировать нечего |
+| 2 | `DPATTR_ACK_APP` | CAME is acknowledgeable | 1 → 2 после квитирования, WENT → 0 |
+| 3 | `DPATTR_ACK_PAIR` | CAME or WENT must be acknowledged | квитируется **одна** сторона пары |
+| 4 | `DPATTR_ACK_APP_AND_DISAPP` | CAME and WENT must be acknowledged separately | CAME, потом WENT — два квитирования |
+
+Класс с `_ack_type = 1` — это и есть «тревога без квитирования»: она появляется,
+сразу считается квитированной и снимается возвратом значения. Для диапазона,
+который не должен требовать действий оператора (например, предупреждение
+20…30 в задании с диапазонами 0/20/30), подходит `System1:information.` или
+свой класс с `_ack_type = 1`. `System1:scAlarm.` для этого **не** подходит: при
+`_ack_type = 0` тревога ждёт квитирования, просто квитирование её удаляет.
+Если в задании класс не указан — это вопрос к постановщику, а не повод взять
+первый попавшийся.
+
+### Свой класс
+
+```c
+string cls = "dptest_class_08_11";
+
+dpCreate(cls, "_AlertClass");                        // 1. точка класса
+
+// 2. Сначала только _type: без него конфига ещё нет.
+dpSetWait(cls + ".:_alert_class.._type", DPCONFIG_ALERT_CLASS);   // 14
+
+// 3. Теперь остальные атрибуты (можно одним вызовом).
+dpSetWait(cls + ".:_alert_class.._prior",    45,               // 1..255
+          cls + ".:_alert_class.._abbr",     "Q",
+          cls + ".:_alert_class.._ack_type", DPATTR_ACK_NONE,  // 1
+          cls + ".:_alert_class.._archive",  TRUE);
+
+// 4. Ссылка из диапазона — имя точки с точкой на конце.
+dpSetWait(dpe + ":_alert_hdl.2._class", cls + ".");
+```
+
+Что измерено:
+
+* `dpCreate(name, "_AlertClass")` создаёт точку, но конфиг пуст: `_type = 0`,
+  `_prior = -1`. Запись `_prior` **до** `_type` отклоняется: `rc = -1`,
+  `PARAM,WARNING,9 Config does not exist`.
+* После `_type = DPCONFIG_ALERT_CLASS` появляются значения по умолчанию:
+  `_prior = 1`, `_abbr = ""`, `_ack_type = 0`, `_archive = TRUE`.
+* `_archive` у класса **не влияет** на `_alerts` и квитирование из CTL. Два
+  класса, отличавшиеся только `_archive` (TRUE и FALSE), на одинаковых точках
+  дали одинаковую картину: CAME → `_act_state=1`, запись в `_alerts` есть,
+  `alertSet` по номеру диапазона → `2`, WENT → `0`. Попадание в архив NGA этим
+  замером не проверялось.
+* Работает и запись в элемент чужой точки (`_AlertClass`-классом может быть
+  любой DPE), но проще держать отдельную точку на класс.
+* `_class` хранится с системным префиксом: записали `"dptest_class_08_11."`,
+  прочитали `"System1:dptest_class_08_11."`.
+* Смена `_class` у диапазона на живой точке: при `_active = FALSE` и закрытой
+  тревоге принимается (`rc = 0`). Если на точке висит незакрытая тревога,
+  `dpSetWait` возвращает `-1` и `PARAM,WARNING,31 Config type change failed`.
+* Уборка: `dpSet(cls + ".:_alert_class.._type", DPCONFIG_NONE)`, затем
+  `dpDelete(cls)`.
+
+### Состояния `_act_state`
+
+| `_act_state` | Состояние | Когда |
+| --- | --- | --- |
+| 0 | тревоги нет | значение в «хорошем» диапазоне |
+| 1 | CAME, не квитирована | класс с квитированием, оператор ещё не нажал |
+| 2 | CAME, квитирована | квитировали или класс без квитирования (`_ack_type = 1`) |
+| 3 | WENT, не квитирована | значение вернулось, а тревога не была квитирована |
+| 4 | CAME+WENT, не квитированы | только `_ack_type = 4`, значение ушло до квитирования |
+
+Приоритет активного диапазона читается как `_alert_hdl.._act_prior` (10, 50,
+60 — из класса). Обычный `_alert_hdl.._prior` у диапазонной тревоги равен `-1`.
+
+### Квитирование аналоговой тревоги из CTL
+
+Для тревоги, привязанной к диапазону, базовый атрибут
+`:_alert_hdl.._ack_state` — **молчаливый no-op**: `alertSet()` возвращает `0`,
+а `_act_state` не меняется. Квитирует только атрибут с номером диапазона:
+
+```c
+int range = 3;                                    // _act_range аварийного диапазона
+dyn_atime al;
+dpGet(dpe + ":_alert_hdl.._alerts", al);
+
+for (int i = 1; i <= dynlen(al); i++)
+{
+  dyn_anytype st, gt;
+  alertGet(al[i], getACount(al[i]), dpe + ":_alert_hdl." + (string)range + "._ack_state", st);
+  alertGet(al[i], getACount(al[i]), dpe + ":_alert_hdl." + (string)range + "._gone_time",  gt);
+
+  bool went = (dynlen(gt) == 1 && (time)gt[1] != 0);   // у CAME _gone_time = 0
+  if (dynlen(st) == 1 && (int)st[1] == 0 && !went)     // неквитированная CAME
+  {
+    time t = (time)al[i];                              // время тревоги, не 0
+    if (t != 0)
+      alertSet(t, getACount(al[i]),
+               dpe + ":_alert_hdl." + (string)range + "._ack_state",
+               DPATTR_ACKTYPE_SINGLE);
+    break;
+  }
+}
+```
+
+Правила, проверенные на стенде:
+
+* `t` берётся из `(time)atime`, `count` — из `getACount(atime)`; `_alerts`
+  содержит отдельные записи CAME и WENT, у которых совпадают время и `count`.
+* Атрибуты записи читаются **только** через номер её диапазона:
+  `:_alert_hdl.3._ack_state`. Базовая форма `:_alert_hdl.._ack_state` для
+  диапазонной тревоги даёт пустой `dyn_anytype`.
+* CAME-запись: `_direction = TRUE`, `_gone_time = 0`, `_ack_state = 0` до
+  квитирования и `2` после. WENT-запись: `_direction = FALSE`, `_gone_time`
+  заполнен.
+* `_ack_type = 3`, состояние 3: квитируется **WENT-запись** (квитирование
+  CAME-записи в этом состоянии — no-op).
+* `_ack_type = 4`, состояние 4: сначала CAME (`4 → 3`), потом WENT (`3 → 0`).
+  Попытка квитировать WENT первой принимается с `rc = 0` и ничего не меняет.
+* Признак успеха — изменившийся `_act_state` и `_ack_state = 2` у записи,
+  а не `rc`. Комментарий и `_add_values` пишутся тем же адресом с номером
+  диапазона.
+
+**Скрипт.** `examples/08-alerts/11_alertClass.ctl` — 50 проверок, ✅ проверено.
+
+**Типичные ошибки**
+
+* Создать класс и сразу писать `_prior`/`_ack_type` — без `_type` конфига нет,
+  `rc = -1` (`PARAM,WARNING,9`).
+* Ссылаться на класс без завершающей точки (`"my_class"` вместо `"my_class."`)
+  или указывать класс, у которого `_alert_class.._type` так и остался `0`.
+* Квитировать диапазонную тревогу базовым `:_alert_hdl.._ack_state`: `rc = 0`,
+  результат нулевой.
+* Брать класс `System1:alert.` для диапазона, который по заданию не должен
+  требовать квитирования.
 
 ---
 
@@ -922,6 +1095,23 @@ DebugN(getAIdentifier(At));                        // "System1:ExampleDP_DDE.b1.
 | `RE_ALARM` по неквитированной тревоге | no-op: `rc=0`, записей не добавляется, `_act_state`/`_value` не меняются |
 | `_original.._stime` при multi-instance | не двигается ни от WENT, ни от квитирования; время CAME — только `_came_time` экземпляра |
 | `_alerts` и закрытые записи | закрытые и квитированные записи постепенно выпадают из списка сами |
+| Классы `_AlertClass` | точки типа `_AlertClass`; на стенде 20: 7 штатных + 13 `S7_*` |
+| Приоритеты штатных классов | advanceAlarm 20, alert 60, warning 40, danger 80, disturbance 100, scAlarm 90, information 10 |
+| `_ack_type` штатных классов | 3 у advanceAlarm/alert/warning/danger/disturbance, 1 у information, 0 у scAlarm |
+| Создание своего класса | `dpCreate(name, "_AlertClass")`; `_prior` до `_type=14` → `-1`, `PARAM,WARNING,9` |
+| Свой класс: значения по умолчанию | после `_type=14`: `_prior=1`, `_abbr=""`, `_ack_type=0`, `_archive=TRUE` |
+| `_archive` класса vs `_alerts` | не влияет: при `_archive=FALSE` запись есть и квитируется так же, как при `TRUE` |
+| `_class` со своим классом | хранится с префиксом `System1:<имя>.`; в конфиг пишется `"<имя>."` |
+| Смена `_class` на живой точке | при `_active=FALSE` и закрытой тревоге `rc=0`; при незакрытой — `-1`, `PARAM,WARNING,31` |
+| `_act_prior` | приоритет класса активного диапазона (10/50/60); `_alert_hdl.._prior` = `-1` |
+| `_act_state` | 0 нет, 1 CAME/не квит., 2 CAME/квит., 3 WENT/не квит., 4 CAME+WENT (только `_ack_type=4`) |
+| `alertSet` по базовому `_ack_state` (диапазон) | `rc=0`, состояние не меняется |
+| `alertSet` по `_alert_hdl.<N>._ack_state` | квитирует; `t=(time)atime`, `count=getACount(atime)` |
+| `_ack_type=0`, состояние 1 | квитирование CAME сразу даёт `_act_state=0`; WENT после этого добавляет закрытую запись |
+| `_ack_type=2`, состояние 1 | квитирование CAME даёт `2` (не `0`); WENT закрывает до `0` |
+| `_ack_type=3`, состояние 3 | квитируется WENT-запись; квитирование CAME-записи — no-op |
+| `_ack_type=4`, состояние 4 | сначала CAME (`4→3`), потом WENT (`3→0`); WENT первым — no-op |
+| Атрибуты записи по номеру чужого диапазона | пустой `dyn_anytype`, как у базовой формы |
 
 **След на стенде.** Все примеры квитируют тревоги перед удалением точки (или
 гасят `_active`), поэтому живых точек и неквитированных тревог не остаётся. Класс
@@ -949,6 +1139,10 @@ _alert_hdl.._multi_instance              ──▶ режим нескольки
 _alert_hdl.<N>._event                    ──▶ CAME/WENT multi-instance тревоги
 _alert_hdl.<N>._direction                ──▶ атрибуты экземпляра: только с номером диапазона
 _alert_hdl.<N>._ack_state                ──▶ квитирование экземпляра (DPATTR_ACKTYPE_SINGLE)
+
+_alert_hdl.<N>._class                    ──▶ класс тревоги диапазона (точка _AlertClass)
+_alert_class.._prior / _abbr / _ack_type ──▶ настройка класса
+_alert_hdl.._act_prior                   ──▶ приоритет активного диапазона
 
 getAIdentifier() / setAIdentifier()      ──▶ имя точки данных в atime
 setACount() / getACount()                ──▶ номер тревоги в atime
